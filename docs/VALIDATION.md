@@ -18,7 +18,7 @@
 - `python -m py_compile scripts/package-windows.py`、`git diff --check` 通过。便携包脚本要求干净 Git、校验打包模型 SHA-256、附完整对应源码并验证 ZIP；源码内 `SOURCE-INFO.json` 记录实际提交。
 - 原版网页已实测人机开局、选子、电脑应手、局内设置和退出确认，公开行为规格和 REA 证据索引见 [WINDOWS-RESEARCH.md](WINDOWS-RESEARCH.md)。个人截图和原始记录保留在 Git 忽略目录。
 
-Windows 0.3.0 在 `feat/windows-3` 分支完成，标签 `v0.3.0` 对应提交 `fef0a26`；历史 `v0.1.0`、`v0.2.0` 保留。源码发布位置为 [wlaog/anxin-xiangqi](https://github.com/wlaog/anxin-xiangqi)，主分支 `main`。本次只推送 Git 源码与版本标签，没有上传二进制 Release。便携包仍以包内对应源码和 `SOURCE-INFO.json` 为准。
+Windows 0.3.0 在 `feat/windows-3` 分支完成，标签 `v0.3.0` 对应提交 `fef0a26`；历史 `v0.1.0`、`v0.2.0` 保留。源码发布位置为 [wlaog/anxin-xiangqi](https://github.com/wlaog/anxin-xiangqi)，主分支 `main`。按用户追加授权发布 [v0.3.0 Release](https://github.com/wlaog/anxin-xiangqi/releases/tag/v0.3.0)：Windows 便携 ZIP、完整对应源码 ZIP、`SHA256SUMS.txt`。上传前核对标签/源码身份、两个 ZIP 完整性和包内对应源码一致性，上传后核对远端大小与 GitHub 返回的 SHA-256；没有修改既有版本标签。发布说明见 [v0.3.0.md](releases/v0.3.0.md)。便携包仍以包内对应源码和 `SOURCE-INFO.json` 为准。
 
 仍须完成：Windows 干净系统与运行库验证、实际显示 DPI 缩放、Narrator / 键盘、完整断网人工对局与长辈试用；原创残局练习、棋谱导出、声音 / 语音未实现。最高难度原版运行链路、悔棋/提示消耗、终局和退出续局仍未知。以下记录为第二版历史，不表示本轮继续了安卓工作。
 

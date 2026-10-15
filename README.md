@@ -2,15 +2,17 @@
 
 给长辈的一张清楚、安静、随时能接着下的棋桌。开源、离线、人机对弈，目标平台 Windows 与 Android。
 
-源码仓库：[wlaog/anxin-xiangqi](https://github.com/wlaog/anxin-xiangqi)，主分支 `main`。下文 `artifacts/` 链接指向本地生成的文件，不随 Git 上传；当前尚未发布 GitHub Release 安装包。
+源码仓库：[wlaog/anxin-xiangqi](https://github.com/wlaog/anxin-xiangqi)，主分支 `main`。下载与更新说明见 [GitHub Releases](https://github.com/wlaog/anxin-xiangqi/releases)。
 
 ## 当前 Windows 版：0.3.0
 
 当前优先完善 Windows，Android / SDK 工作暂停。新增可保存的大字设置、可选落子确认、减少动效、放大棋盘中继续对弈及桌面侧栏独立滚动。放大视图棋格至少 60 逻辑像素，可拖动滚动条查看整盘；文字放大不会挤压棋子字形。
 
-本地试用：[Windows 0.3.0 便携包](artifacts/anxin-xiangqi-windows-0.3.0.zip)。完整解压后运行 `anxin_xiangqi.exe`，不要直接在压缩包里运行。右侧工具可单独滚动，“使用设置”中调整文字、确认和动效，“放大棋盘”中可继续下棋。Windows 包附同版本完整对应源码和 NNUE。
+下载试用：[Windows 0.3.0 便携包](https://github.com/wlaog/anxin-xiangqi/releases/download/v0.3.0/anxin-xiangqi-windows-0.3.0.zip)。完整解压后运行 `anxin_xiangqi.exe`，不要直接在压缩包里运行。右侧工具可单独滚动，“使用设置”中调整文字、确认和动效，“放大棋盘”中可继续下棋。Windows 包附同版本完整对应源码和 NNUE。
 
-历史安卓产物仍为 [0.2.0 APK](artifacts/anxin-xiangqi-android-0.2.0.apk) 与 [含源码发行包](artifacts/anxin-xiangqi-android-0.2.0.zip)，尚未通过设备安装对弈验收，不代表 0.3.0 安卓已交付。
+开发与再分发可单独下载 [完整对应源码](https://github.com/wlaog/anxin-xiangqi/releases/download/v0.3.0/anxin-xiangqi-source-0.3.0.zip)，内含引擎子模块源码和同一模型；两个压缩包的校验值见 [SHA256SUMS.txt](https://github.com/wlaog/anxin-xiangqi/releases/download/v0.3.0/SHA256SUMS.txt)。不要把 GitHub 自动生成、缺少子模块和模型的 “Source code” 归档当作完整离线源码包。
+
+本地历史安卓产物仍为 [0.2.0 APK](artifacts/anxin-xiangqi-android-0.2.0.apk) 与 [含源码发行包](artifacts/anxin-xiangqi-android-0.2.0.zip)，仅在本地 `artifacts/`，未上传 GitHub。它们尚未通过设备安装对弈验收，不代表 0.3.0 安卓已交付。
 
 ## 已有离线能力
 
