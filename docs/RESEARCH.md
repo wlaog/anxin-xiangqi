@@ -1,6 +1,6 @@
 # 原版研究：天天象棋 4.4.6.2
 
-本页保留第一轮 APK 静态研究。第二轮已增加网页运行截图、公开前端难度模块与动态资源线索，见 [DEMO2-RESEARCH.md](DEMO2-RESEARCH.md)；公开引擎现已接入产品，见 [ENGINE.md](ENGINE.md)。Android 原版安装后行为仍未实测。
+本页保留第一轮 APK 静态研究，其中“当前产品”是当时状态。第二轮公开前端分析见 [DEMO2-RESEARCH.md](DEMO2-RESEARCH.md)，登录后的网页实测见 [WINDOWS-RESEARCH.md](WINDOWS-RESEARCH.md)；公开引擎现已接入产品，见 [ENGINE.md](ENGINE.md)。Android 原版安装后行为仍未实测。
 
 日期：2026-10-15（Asia/Shanghai）。本轮完成静态清单、Java 类/方法与引擎边界研究，未运行原版游戏。可公开结论进入此文档；样本、提取文件与完整 Evidence 留在忽略目录。
 

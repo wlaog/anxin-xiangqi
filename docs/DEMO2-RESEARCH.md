@@ -2,6 +2,8 @@
 
 日期：2026-10-15。研究工具仍为 REA 6.5.0 CLI，不把 CLI 使用描述为 MCP 已连接。
 
+本页为第二轮历史记录。后续用户扫码后的真实人机对局、设置和退出行为见 [WINDOWS-RESEARCH.md](WINDOWS-RESEARCH.md)。
+
 ## 实际运行观察
 
 REA `capture-browser-scenario` 使用本机 Edge、独立临时配置、已知起始地址 `https://h5login.qqchess.qq.com/`，等待 25 秒，记录截图、URL、DOM、无障碍树和有预算限制的网络事件。没有操作用户原来的已登录 Edge 标签页，也未复制其 cookies。
