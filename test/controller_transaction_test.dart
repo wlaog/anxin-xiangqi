@@ -154,6 +154,7 @@ void main() {
     expect(game.notice, isNull);
     expect(jsonDecode(store.data!), {
       'version': 2,
+      'gameId': game.gameId,
       'level': 4,
       'side': 'red',
       'preferences': game.preferences.toJson(),

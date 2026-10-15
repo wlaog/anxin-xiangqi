@@ -2,6 +2,19 @@
 
 日期：2026-10-15（Asia/Shanghai）。
 
+## Windows 0.5.0 本地棋谱库
+
+分支 `feat/offline-game-library`，版本 `0.5.0+5`。本轮实现报告中的第一项本地多盘棋谱库；原创残局和声音辅助尚未实现。未推送、打标签或发布 Release，Android / SDK 工作仍暂停。
+
+- 最终 `flutter analyze --no-pub` 无问题。最终 `flutter test --no-pub --reporter expanded`：完整 **85 项通过**，含原有真实 Windows Pikafish / NNUE、棋规及键盘交互回归。最后一轮日志保存在忽略的 `artifacts/library-tests-final.log`。
+- 新增 21 项测试：库的串行保存、改名收藏与多盘重开；损坏条目和重复身份隔离保留；整个库损坏时禁止覆盖；写失败不提交内存；新局前保存失败保留当前盘；旧存档稳定身份迁移；保存中迟到 AI；棋规非法棋谱不能继续；终局归档；延迟终局写入不能覆盖悔棋后离开的最终记录；当前续局保存失败时仍可独立归档。
+- 真实文件检查覆盖主文件与上一份备份、主文件缺失时恢复、主文件损坏时不静默回滚、路径被目录占用时替换失败仍保留备份，以及第二个库实例检测外部变化后拒绝覆盖。不是完整断电、进程强杀或所有文件系统故障注入；没有宣称多窗口编辑可以自动合并。
+- 新增真实原生工作流：使用固定 Pikafish / NNUE 下完一轮、自动保存旧盘、重放裁决、继续旧盘并核对原生合法走法。引擎源码、模型和搜索预算未替换。其余失败注入用可控存储和裁决替身，未冒充真实磁盘故障或原生引擎失败。
+- 新增界面检查覆盖真实棋桌入口、回看不改实盘、改名收藏、删除取消及确认、继续旧盘前保存当前盘；360×800、640×360 均以系统 200% 叠加应用 1.4 倍文字检查滚动、改名、删除确认和返回；120 份棋谱按可见范围构建，首屏 Card 少于 10 个；手动保存失败可重试。
+- `ANXIN_PREVIEW_FONT=C:/Windows/Fonts/msyh.ttc` 下实际运行 `flutter test tool/library_preview_test.dart --no-pub --reporter expanded`：1 项通过。目视核对 `windows-library.png`、`windows-library-narrow.png`、`windows-library-landscape.png`，统一放大新界面的删除和取消按钮。截图为 Flutter 测试渲染，不是 Windows 人工使用截图，字体不随包发行。
+- 最终 `flutter build windows --release --no-pub` 成功；构建 EXE 的 FileVersion 与 ProductVersion 均为 `0.5.0+5`。本轮没有启动最终 GUI 做人工完整对局，也未进行真实 Narrator、干净系统、长辈试用或 Android 验收。
+- `python -m py_compile scripts/package-windows.py`、`git diff --check` 通过。打包需在本地提交后进行，打包结果另行记录；此处不把尚未执行的打包写成通过。
+
 ## APK 功能差距报告
 
 本次为文档与静态研究，游戏版本保持 `0.4.0+4`。报告见 [功能对比与适老化建议](APK-FUNCTION-GAP-REPORT.md)，Word 版保存在忽略的本地 `artifacts/reports/`。

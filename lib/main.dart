@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'application/game_controller.dart';
+import 'application/game_library.dart';
 import 'domain/xiangqi.dart';
 import 'domain/game_record.dart';
 import 'infrastructure/game_store.dart';
+import 'infrastructure/library_file_store.dart';
 import 'infrastructure/pikafish.dart';
 import 'presentation/game_review.dart';
+import 'presentation/game_library_dialog.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +23,7 @@ Future<void> main() async {
           store: PreferencesGameStore(),
           engine: runtime,
           rules: runtime,
+          library: GameLibrary(LibraryFileStore()),
         ),
       ),
     );
@@ -153,6 +157,7 @@ class _ChessPageState extends State<ChessPage> {
   GameRecordEntry? lastEntry;
   int previousPly = -1;
   Position? previousPosition;
+  String? previousGameId;
   final controlsScroll = ScrollController();
   @override
   void initState() {
@@ -163,13 +168,17 @@ class _ChessPageState extends State<ChessPage> {
     if (game.ready) {
       previousPly = game.ply;
       previousPosition = game.position;
+      previousGameId = game.gameId;
     } else {
       game.initialize();
     }
   }
 
   void _changed() {
-    if (previousPly < 0 && game.ready) flipped = game.playerSide == Side.black;
+    if ((previousPly < 0 || previousGameId != game.gameId) && game.ready) {
+      flipped = game.playerSide == Side.black;
+      previousGameId = game.gameId;
+    }
     if (!identical(previousPosition, game.position)) {
       previousPosition = game.position;
       previousPly = game.ply;
@@ -385,7 +394,12 @@ class _ChessPageState extends State<ChessPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('当前棋局会被新的一盘替换。', style: TextStyle(fontSize: 22)),
+                  Text(
+                    game.library == null
+                        ? '当前棋局会被新的一盘替换。'
+                        : '当前棋局会先存入“我的棋局”，再开始新的一盘。',
+                    style: const TextStyle(fontSize: 22),
+                  ),
                   RadioListTile<Side>(
                     title: const Text('我执红，先走'),
                     value: Side.red,
@@ -412,14 +426,7 @@ class _ChessPageState extends State<ChessPage> {
       ),
     );
     if (yes == true && mounted) {
-      final before = game.position;
-      final completion = game.newGame(side: side);
-      // The controller publishes a prepared board before saving or searching.
-      // A failed preparation preserves the old board and its UI state.
-      if (!identical(before, game.position)) {
-        setState(() => flipped = game.playerSide == Side.black);
-      }
-      await completion;
+      await game.newGame(side: side);
     }
   }
 
@@ -431,6 +438,7 @@ class _ChessPageState extends State<ChessPage> {
         child: Text(
           '红棋先走。先点自己的棋子，再点有圆点的位置。新开局时可选执红或执黑。\n\n'
           '“悔一步”会回到您上次落子前。关闭后自动续局，不需要登录或联网。\n\n'
+          '重新开始前会先保存旧盘。点“我的棋局”可以回看、改名、收藏或继续以前的棋；“保存本局”会保留当前走到的位置。\n\n'
           '将死或无棋可走均判负。长将、长捉由本地引擎判断：违规一方需要换走法，不能换时判负。双方允许不变的重复局面才判和棋。采用公开 Pikafish 的规则口径，未宣称与腾讯或所有竞赛规则完全一致。\n\n'
           '五档电脑都在本机思考。“帮我想想”只提示，不代您落子。“回看棋局”不改变当前棋局。小屏手机建议横向放大或使用平板。',
           style: TextStyle(fontSize: 22),
@@ -624,6 +632,29 @@ class _ChessPageState extends State<ChessPage> {
       ),
       const SizedBox(height: 12),
       OutlinedButton(onPressed: _largeBoard, child: const Text('放大棋盘')),
+      if (game.library != null) ...[
+        const SizedBox(height: 12),
+        OutlinedButton(
+          onPressed: game.ready
+              ? () => showDialog<void>(
+                  context: context,
+                  builder: (_) => GameLibraryDialog(
+                    game: game,
+                    boardBuilder: (position, move) => ChessBoard(
+                      position: position,
+                      selected: null,
+                      targets: const {},
+                      lastMove: move,
+                      onTap: (_) {},
+                      enabled: false,
+                      flipped: flipped,
+                    ),
+                  ),
+                )
+              : null,
+          child: const Text('我的棋局'),
+        ),
+      ],
       const SizedBox(height: 12),
       OutlinedButton(onPressed: _settings, child: const Text('使用设置')),
       const SizedBox(height: 12),

@@ -5,6 +5,8 @@ abstract interface class GameStore {
   Future<void> write(String data);
 }
 
+class GameStoreConflict implements Exception {}
+
 class PreferencesGameStore implements GameStore {
   static const key = 'anxin.game.v1';
   @override

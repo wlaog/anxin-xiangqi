@@ -12,8 +12,10 @@ class GameReviewDialog extends StatefulWidget {
     super.key,
     required this.record,
     required this.boardBuilder,
+    this.contextDescription,
   });
   final GameRecord record;
+  final String? contextDescription;
   final Widget Function(Position position, Move? lastMove) boardBuilder;
 
   @override
@@ -110,9 +112,9 @@ class _GameReviewDialogState extends State<GameReviewDialog> {
         ),
       ),
       if (compact)
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(top: 12),
-          child: Text('这是打开回看时的棋局，返回后可继续下。'),
+          child: Text(widget.contextDescription ?? '这是打开回看时的棋局，返回后可继续下。'),
         ),
     ],
   );
@@ -222,7 +224,10 @@ class _GameReviewDialogState extends State<GameReviewDialog> {
                                 : '回看棋局 · 第 $step 步 / 共 ${widget.record.moves.length} 步',
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
-                        if (!compact) const Text('这是打开回看时的棋局，返回后可继续下。'),
+                        if (!compact)
+                          Text(
+                            widget.contextDescription ?? '这是打开回看时的棋局，返回后可继续下。',
+                          ),
                         if (copyMessage != null)
                           Padding(
                             key: copyNoticeKey,
