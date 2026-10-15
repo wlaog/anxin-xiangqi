@@ -2,6 +2,27 @@
 
 日期：2026-10-15（Asia/Shanghai）。
 
+## Windows 0.4.0 本地开发版
+
+本轮分支 `feat/apk-informed-review`，版本 `0.4.0+4`；没有推送、创建新版本标签或发布 Release。Android / SDK 工作继续暂停。
+
+- `flutter analyze --no-pub`：最终无问题。最初发现新测试缺少大括号的一条 lint，已修正后重跑。
+- `flutter test --no-pub --reporter expanded`：完整 64 项通过，包含原有真实 Windows Pikafish / NNUE 的五档搜索、一步将死、事件循环、44/1920 走法计数、长将长捉与跨实现走法验证。原生库、固定引擎与模型未替换。
+- 新增领域测试 9 项：红黑朝向、平进退、前后子、复杂多兵的完整位置说明、吃子、空谱、1024 步记录、不可变快照与走前走后配对拒绝。没有宣称完整 PGN / XQF 或所有中文记谱细则。
+- 新增控制器测试 12 项：先裁决后整盘提交；玩家/电脑走棋、悔棋、新局与恢复末步裁决失败保留状态；并发初始化只读取/应手一次；读取中释放；失败操作后的过期 AI 不落子。动作和存储提示分开，坏档保留、写入失败不会被成功落子清掉，成功重试写入后才解除对应警告。
+- 新增界面测试 8 项，覆盖键盘选子/取消/落子、单 Tab 入口、翻转逻辑格身份、确认取消后焦点恢复与预览 Esc、放大对弈、思考中不能落子、真实上一着与建议分开、失败新局保留原朝向/建议、同一步数新局使旧建议失效。
+- 回看/复制用例检查：AI 完成应手后仍显示打开时快照，回看不改实盘；首末步与列表跳转；200 步长谱只构建可见项；复制完整快照而非后来实盘；复制失败可恢复。剪贴板验证使用平台通道替身，没有冒充实际 Windows 系统剪贴板人工验收。
+- 完整套件后，目视预览发现极大字窄窗口首屏主要被标题和底部操作占据。调整为短标题、充分利用宽度及简短固定操作后，重跑 `flutter test test/experience_test.dart test/widget_test.dart --no-pub --reporter expanded`：18 项通过。360×800 与 640×360 均叠加系统 200% 和应用 1.4 倍文字，保留实际 61.6 逻辑像素的正文缩放，分别检查首屏棋盘至少 99% / 75% 可见，导航和返回可达；点击着法只定位外层棋盘，保留内层列表位置。
+- 最终可选 `flutter test tool/preview_test.dart --no-pub --reporter expanded`：1 项通过，使用本机中文字体与原创木纹。目视核对桌面双栏回看、选子/应手反馈及 `windows-review-narrow-large-text.png`；窄屏首屏可见完整棋盘，固定“复制”“返回”保留完整辅助功能标签。截图是 Flutter 测试渲染，字体未随包发行。
+- 最终 `flutter build windows --release --no-pub` 成功，EXE 的 FileVersion / ProductVersion 均为 `0.4.0+4`。本轮没有启动最终 GUI 做人工完整对局。
+- `python scripts/inspect-apk-experience.py tiantian-xiangqi/base.apk.1` 成功；原样本与旧私有 APK 摘要相同。解析 4 个选定预制界面的 4,027 个对象，并逐项核对 535 个字面量 JSON 指针与原始成员的值一致。REA MCP 归档检查与 CLI / JADX 定向证据见 [第四轮 APK 研究](APK-EXPERIENCE.md)。没有运行原版 Android APK。
+- `python -m py_compile scripts/inspect-apk-experience.py scripts/package-windows.py`、`git diff --check` 通过；相邻 `rea-tools` 工作树未修改。
+- 本地 `python scripts/package-windows.py` 已实际生成 0.4.0 Windows 便携包和完整对应源码。脚本校验便携 ZIP；另检查源码 ZIP 的 CRC、包内源码与单独源码 ZIP 字节一致、EXE/DLL 与最终构建一致、两个包内 NNUE 摘要与固定清单一致，并检查源码未包含原 APK / 从 APK 提取的脚本 / 私有研究目录。`SOURCE-INFO.json` 记录最终打包时的实际 Git 提交；校验值位于本地 `.zip.sha256`。
+
+本地产物为 `artifacts/anxin-xiangqi-windows-0.4.0.zip`、`artifacts/anxin-xiangqi-source-0.4.0.zip`，以及 `build/windows/x64/runner/Release/anxin_xiangqi.exe`；产物、原 APK 和完整原始研究数据均未提交。
+
+仍未验证：实际 Windows 系统剪贴板、物理键盘 / Narrator、DPI、干净系统、断网人工完整对局及长辈试用。原版 `.jsc` 未解码，安装后各模式、真实难度参数、悔棋消耗和续局仍未知。原生搜索在尚未开始或排队时可能丢失取消、全局引擎复用首个模型配置，为源码推导的后续工作，未声称运行复现或本轮修复。原有 Android 设备验收限制继续有效。
+
 ## Windows 0.3.0
 
 本轮按用户要求暂停 Android / SDK 工作，未生成 0.3.0 Android 包，未把共用代码测试当作安卓实机验收。
