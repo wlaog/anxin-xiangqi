@@ -25,31 +25,76 @@ class IsolateAiEngine implements AiEngine {
       compute(_search, (position, level));
 }
 
+/// A single committed game: its history and verdict always describe one state.
+class _GameState {
+  _GameState(this.history, this.moves, this.verdict);
+  final List<Position> history;
+  final List<Move> moves;
+  final RuleVerdict verdict;
+}
+
+enum _ActionNotice {
+  resumed,
+  moveFailed,
+  computerFailed,
+  undoFailed,
+  newGameFailed,
+  hintFailed,
+}
+
+enum _StorageNotice { retainedGame, writeFailed }
+
 class GameController extends ChangeNotifier {
   GameController({required this.store, required this.engine, RuleBook? rules})
     : rules = rules ?? BasicRules();
   final GameStore store;
   final AiEngine engine;
   final RuleBook rules;
-  RuleVerdict _verdict = const RuleVerdict(Outcome.playing, []);
+  _GameState _state = _GameState(
+    List.unmodifiable([Position.initial()]),
+    const [],
+    const RuleVerdict(Outcome.playing, []),
+  );
   Side playerSide = Side.red;
-  final _history = [Position.initial()];
-  final _moves = <Move>[];
-  Position get position => _history.last;
-  Move? get lastMove => _moves.isEmpty ? null : _moves.last;
-  int get ply => _moves.length;
+  Position get position => _state.history.last;
+  Move? get lastMove => _state.moves.lastOrNull;
+  int get ply => _state.moves.length;
   bool get canUndo => ready && ply > (playerSide == Side.black ? 1 : 0);
-  List<Position> get history => List.unmodifiable(_history);
-  List<Move> get moves => List.unmodifiable(_moves);
-  List<Move> get forbiddenMoves => _verdict.forbidden;
+  List<Position> get history => _state.history;
+  List<Move> get moves => _state.moves;
+  List<Move> get forbiddenMoves => _state.verdict.forbidden;
   int level = 2;
   UserPreferences preferences = const UserPreferences();
   bool ready = false, busy = false;
-  bool _disposed = false, _allowSave = true;
+  bool _disposed = false;
   int _generation = 0;
-  String? notice;
-  Outcome result = Outcome.playing;
+  _ActionNotice? _actionNotice;
+  _StorageNotice? _storageNotice;
+  String? get notice {
+    final action = switch (_actionNotice) {
+      _ActionNotice.resumed => '已接着上次的棋局',
+      _ActionNotice.moveFailed => '这步棋暂时无法确认，棋盘未改变。请再试一次。',
+      _ActionNotice.computerFailed => '电脑暂时无法落子。可以点“继续思考”重试，或悔棋。',
+      _ActionNotice.undoFailed => '暂时无法悔棋，棋盘未改变。请再试一次。',
+      _ActionNotice.newGameFailed => '暂时无法重新开始，棋盘未改变。请再试一次。',
+      _ActionNotice.hintFailed => '暂时没有想好提示，请稍后重试。',
+      null => null,
+    };
+    final storage = switch (_storageNotice) {
+      _StorageNotice.retainedGame => '棋局暂时无法准备，原存档已保留；当前走棋和设置不会保存。请点“重新开始”重试。',
+      _StorageNotice.writeFailed => '这盘棋暂时不能保存，您仍可以继续下棋。',
+      null => null,
+    };
+    return storage == null
+        ? action
+        : action == null
+        ? storage
+        : '$storage\n$action';
+  }
+
+  Outcome get result => _state.verdict.result;
   Future<void> _writes = Future.value();
+  Future<void>? _initialization;
 
   String get status => switch (result) {
     Outcome.redWins => playerSide == Side.red ? '您赢了！再来一盘也可以' : '这盘电脑赢了，下次再试试',
@@ -71,10 +116,18 @@ class GameController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  Future<void> initialize() async {
+  Future<void> initialize() {
+    if (_disposed) return Future.value();
+    return _initialization ??= _initialize();
+  }
+
+  Future<void> _initialize() async {
+    var fallback = _state;
     try {
       final raw = await store.read();
       if (_disposed) return;
+      var restored = _prepare([Position.initial()], []);
+      fallback = restored;
       if (raw != null) {
         final data = jsonDecode(raw);
         if (data is! Map ||
@@ -86,15 +139,13 @@ class GameController extends ChangeNotifier {
             (data['moves'] as List).length > 4096) {
           throw const FormatException('未知存档');
         }
-        final restored = [Position.initial()];
-        final moves = <Move>[];
         for (final item in data['moves']) {
           if (item is! List ||
               item.length != 2 ||
               item.any((v) => v is! int || v < 0 || v >= 90)) {
             throw const FormatException('损坏的走法');
           }
-          final verdict = rules.judge(restored, moves);
+          final verdict = restored.verdict;
           if (verdict.result != Outcome.playing) {
             throw const FormatException('终局后仍有走法');
           }
@@ -102,36 +153,48 @@ class GameController extends ChangeNotifier {
           if (!verdict.legal.contains(move)) {
             throw const FormatException('存档包含禁着');
           }
-          restored.add(restored.last.play(move));
-          moves.add(move);
+          restored = _prepare(
+            [...restored.history, restored.history.last.play(move)],
+            [...restored.moves, move],
+          );
         }
-        _history
-          ..clear()
-          ..addAll(restored);
-        _moves
-          ..clear()
-          ..addAll(moves);
-        level = data['level'];
-        playerSide = data['side'] == 'black' ? Side.black : Side.red;
-        preferences = UserPreferences.fromJson(data['preferences']);
-        notice = moves.isEmpty ? null : '已接着上次的棋局';
+        final restoredLevel = data['level'] as int;
+        final restoredSide = data['side'] == 'black' ? Side.black : Side.red;
+        final restoredPreferences = UserPreferences.fromJson(
+          data['preferences'],
+        );
+        level = restoredLevel;
+        playerSide = restoredSide;
+        preferences = restoredPreferences;
+        _actionNotice = restored.moves.isEmpty ? null : _ActionNotice.resumed;
       }
+      _state = restored;
     } catch (_) {
-      _allowSave = false;
-      notice = '上次棋局暂时无法读取，原存档已保留。点“重新开始”后可保存新棋局。';
+      _state = fallback;
+      _storageNotice = _StorageNotice.retainedGame;
     }
     if (_disposed) return;
     ready = true;
-    _judge();
     _notify();
     await _computerTurn();
   }
 
-  List<Move> get legalMoves => result == Outcome.playing ? _verdict.legal : [];
+  List<Move> get legalMoves =>
+      result == Outcome.playing ? _state.verdict.legal : const [];
 
-  void _judge() {
-    _verdict = rules.judge(_history, _moves);
-    result = _verdict.result;
+  _GameState _prepare(List<Position> positions, List<Move> moves) {
+    final boards = List<Position>.unmodifiable(positions);
+    final steps = List<Move>.unmodifiable(moves);
+    final verdict = rules.judge(boards, steps);
+    return _GameState(
+      boards,
+      steps,
+      RuleVerdict(
+        verdict.result,
+        List.unmodifiable(verdict.legal),
+        forbidden: List.unmodifiable(verdict.forbidden),
+      ),
+    );
   }
 
   void _cancel() {
@@ -143,27 +206,37 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> play(Move move) async {
-    if (!ready ||
+    if (_disposed ||
+        !ready ||
         busy ||
         position.turn != playerSide ||
         result != Outcome.playing ||
         !legalMoves.contains(move)) {
       return;
     }
-    _append(move);
+    try {
+      _append(move);
+    } catch (_) {
+      _actionNotice = _ActionNotice.moveFailed;
+      _notify();
+      return;
+    }
+    _actionNotice = null;
     _notify();
     _persist();
     await _computerTurn();
   }
 
   void _append(Move move) {
-    _moves.add(move);
-    _history.add(position.applyUnchecked(move));
-    _judge();
+    _state = _prepare(
+      [...history, position.applyUnchecked(move)],
+      [...moves, move],
+    );
   }
 
   Future<void> _computerTurn() async {
     if (_disposed ||
+        !ready ||
         busy ||
         result != Outcome.playing ||
         position.turn == playerSide) {
@@ -172,6 +245,7 @@ class GameController extends ChangeNotifier {
     final ticket = ++_generation;
     busy = true;
     _notify();
+    var changed = false;
     try {
       final move = engine is HistoryAiEngine
           ? await (engine as HistoryAiEngine).chooseGame(history, moves, level)
@@ -180,42 +254,52 @@ class GameController extends ChangeNotifier {
       if (move == null || !legalMoves.contains(move)) {
         throw StateError('电脑未返回有效走法');
       }
-      if (notice == '电脑暂时无法落子。可以点“继续思考”重试，或悔棋。') notice = null;
       _append(move);
+      _actionNotice = null;
+      changed = true;
     } catch (_) {
       if (_disposed || ticket != _generation) return;
-      notice = '电脑暂时无法落子。可以点“继续思考”重试，或悔棋。';
+      _actionNotice = _ActionNotice.computerFailed;
     }
     if (_disposed || ticket != _generation) return;
     busy = false;
     _notify();
-    await _persist();
+    if (changed) await _persist();
   }
 
   Future<void> undo() async {
-    if (!canUndo) return;
+    if (_disposed || !canUndo) return;
     _cancel();
     final count = position.turn != playerSide ? 1 : 2;
-    for (var i = 0; i < count && _moves.isNotEmpty; i++) {
-      _moves.removeLast();
-      _history.removeLast();
+    final remaining = (ply - count).clamp(0, ply);
+    try {
+      _state = _prepare(
+        history.sublist(0, remaining + 1),
+        moves.sublist(0, remaining),
+      );
+    } catch (_) {
+      _actionNotice = _ActionNotice.undoFailed;
+      _notify();
+      return;
     }
-    _judge();
+    _actionNotice = null;
     _notify();
     await _persist();
   }
 
   Future<void> newGame({Side? side}) async {
-    if (!ready) return;
+    if (_disposed || !ready) return;
     _cancel();
+    try {
+      _state = _prepare([Position.initial()], []);
+    } catch (_) {
+      _actionNotice = _ActionNotice.newGameFailed;
+      _notify();
+      return;
+    }
     if (side != null) playerSide = side;
-    _moves.clear();
-    _history
-      ..clear()
-      ..add(Position.initial());
-    _judge();
-    notice = null;
-    _allowSave = true;
+    _actionNotice = null;
+    if (_storageNotice == _StorageNotice.retainedGame) _storageNotice = null;
     _notify();
     await _persist();
     await _computerTurn();
@@ -224,7 +308,8 @@ class GameController extends ChangeNotifier {
   Future<void> retryComputer() => _computerTurn();
 
   Future<Move?> hint() async {
-    if (!ready ||
+    if (_disposed ||
+        !ready ||
         busy ||
         position.turn != playerSide ||
         result != Outcome.playing) {
@@ -239,10 +324,12 @@ class GameController extends ChangeNotifier {
           : await engine.choose(position, level);
       if (_disposed || ticket != _generation) return null;
       if (move == null || !legalMoves.contains(move)) throw StateError('无有效提示');
-      if (notice == '暂时没有想好提示，请稍后重试。') notice = null;
+      if (_actionNotice == _ActionNotice.hintFailed) _actionNotice = null;
       return move;
     } catch (_) {
-      if (!_disposed && ticket == _generation) notice = '暂时没有想好提示，请稍后重试。';
+      if (!_disposed && ticket == _generation) {
+        _actionNotice = _ActionNotice.hintFailed;
+      }
       return null;
     } finally {
       if (!_disposed && ticket == _generation) {
@@ -253,7 +340,7 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> setLevel(int value) async {
-    if (value < 1 || value > 5 || !ready) return;
+    if (_disposed || value < 1 || value > 5 || !ready) return;
     level = value;
     _notify();
     await _persist();
@@ -267,19 +354,25 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> _persist() {
-    if (!ready || !_allowSave) return Future.value();
+    if (_disposed || !ready || _storageNotice == _StorageNotice.retainedGame) {
+      return Future.value();
+    }
     final snapshot = jsonEncode({
       'version': 2,
       'level': level,
       'side': playerSide.name,
       'preferences': preferences.toJson(),
-      'moves': _moves.map((m) => m.toJson()).toList(),
+      'moves': moves.map((m) => m.toJson()).toList(),
     });
     _writes = _writes.then((_) async {
       try {
         await store.write(snapshot);
+        if (_storageNotice == _StorageNotice.writeFailed) {
+          _storageNotice = null;
+          _notify();
+        }
       } catch (_) {
-        notice = '这盘棋暂时不能保存，您仍可以继续下棋。';
+        _storageNotice = _StorageNotice.writeFailed;
         _notify();
       }
     });
