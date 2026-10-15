@@ -14,6 +14,8 @@
 - 已用 computer-use 启动真实 Release 程序，打开“练习与研究”，选择“双车封住宫门”，实际点击红车完成题目，看到完成提示和 1/13 进度，再返回原有执黑实盘，棋盘保持原样；在真实设置中调用了提示音、中文报棋试听，均显示成功返回。本次验收留下这一道示例练习进度，没有删除原棋局。发现试听结果在设置弹窗后面后，将状态移至弹窗内，并用界面故障注入测试检查错误提示确实出现在设置弹窗中。最终构建再次打开真实设置、试听报棋并滚动查看，已确认成功提示位于弹窗内；本次启动的窗口均已关闭。
 - `ANXIN_PREVIEW_FONT=C:/Windows/Fonts/msyh.ttc` 下运行 `flutter test tool/study_preview_test.dart --no-pub --reporter expanded`：1 项通过。目视检查桌面残局、编辑器、分支，以及窄屏和横屏大字共 5 幅预览；都在忽略的 `artifacts/previews/windows-study-*.png`。这些文件是 Flutter 测试渲染，实际程序另由上面的 GUI 检查验证；本机字体未打包。
 - `flutter build windows --release --no-pub` 成功，EXE 的 FileVersion / ProductVersion 为 `0.6.0+6`。`python -m py_compile scripts/package-windows.py`、`git diff --check` 通过。引擎源码、模型和原有陪练预算没有替换；新增研究建议请求使用已有第三档预算。
+- 在代码提交 `b5d7e3f5f637045687cc015c902dc40909d089a8` 的干净工作树上实际运行 `python scripts/package-windows.py`，生成 Windows 便携包及完整对应源码。独立核对两个 ZIP 的 CRC、包内源码 ZIP 与单独源码 ZIP 字节一致、38 个 `lib/` 和 Windows 宿主源码与工作区一致、EXE/DLL 与最终构建一致、两包 NNUE 与固定清单一致；确认源码不含原 APK、提取脚本、私有研究、个人产物或签名材料。摘要在忽略的 `artifacts/study-package-verification.json`，包内 `SOURCE-INFO.json` 记录上述代码提交。
+- `artifacts/anxin-xiangqi-windows-0.6.0.zip`：119705541 字节，SHA-256 `68d84dc9603c71f3451286087f127dcdb8c0ec33d9ca0580304915d484a8c795`。`artifacts/anxin-xiangqi-source-0.6.0.zip`：53759237 字节，SHA-256 `7dd6b2646f9039613baabcf567f15513f3f83b74e289200802a8016f08ba2874`。两包旁均有 `.zip.sha256`；后续本节文档提交不改变已打包代码身份。
 
 仍未完成：长辈实际试用、听感与音量验收、真实 Narrator / 全部 DPI / 干净系统验证、完整人工对弈、断电和进程强杀恢复、全部棋谱格式互通及 Android 真机验收。自由研究须手动保存，Demo 只有一个保存位置；多窗口保护拒绝覆盖，不合并。复盘没有引擎评分或失误诊断，13 题都是一步任务，没有多步课程或自动应手的完整残局闯关。原版 APK 本轮未重新运行或补做逆向。
 
