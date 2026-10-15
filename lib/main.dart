@@ -1,11 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'application/game_controller.dart';
 import 'domain/xiangqi.dart';
+import 'domain/game_record.dart';
 import 'infrastructure/game_store.dart';
 import 'infrastructure/pikafish.dart';
+import 'presentation/game_review.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -146,7 +149,10 @@ class _ChessPageState extends State<ChessPage> {
   bool get showTargets => game.preferences.showTargets;
   bool flipped = false;
   Move? hintMove;
+  Position? describedPosition;
+  GameRecordEntry? lastEntry;
   int previousPly = -1;
+  Position? previousPosition;
   final controlsScroll = ScrollController();
   @override
   void initState() {
@@ -154,17 +160,61 @@ class _ChessPageState extends State<ChessPage> {
     game = widget.controller ?? (throw StateError('请先准备本地引擎，再创建棋桌'));
     game.addListener(_changed);
     flipped = game.playerSide == Side.black;
-    if (!game.ready) game.initialize();
+    if (game.ready) {
+      previousPly = game.ply;
+      previousPosition = game.position;
+    } else {
+      game.initialize();
+    }
   }
 
   void _changed() {
     if (previousPly < 0 && game.ready) flipped = game.playerSide == Side.black;
-    if (previousPly != game.ply) {
+    if (!identical(previousPosition, game.position)) {
+      previousPosition = game.position;
       previousPly = game.ply;
       selected = null;
       hintMove = null;
     }
     if (mounted) setState(() {});
+  }
+
+  String get _lastMoveFeedback {
+    if (!identical(describedPosition, game.position)) {
+      describedPosition = game.position;
+      lastEntry = game.lastMove == null
+          ? null
+          : GameRecordEntry.fromMove(
+              before: game.history[game.ply - 1],
+              move: game.lastMove!,
+              ply: game.ply,
+            );
+    }
+    if (lastEntry == null) return '红方先走，慢慢下，不着急。';
+    final entry = lastEntry!;
+    return '${entry.side == game.playerSide ? '您' : '电脑'}刚走：${entry.notation}'
+        '${entry.captured == null ? '。' : '，吃掉${entry.captured!.label}。'}';
+  }
+
+  String? get _selectionFeedback {
+    if (hintMove != null) {
+      final entry = GameRecordEntry.fromMove(
+        before: game.position,
+        move: hintMove!,
+        ply: game.ply + 1,
+      );
+      return '建议：${entry.notation}。灯泡标出建议，不会自动走。';
+    }
+    if (selected != null) {
+      final piece = game.position.board[selected!];
+      if (piece != null) {
+        final count = game.legalMoves
+            .where((move) => move.from == selected)
+            .length;
+        return '已选${piece.side == Side.red ? '红方' : '黑方'}${piece.label}，有 $count 个可走位置。';
+      }
+    }
+    return null;
   }
 
   @override
@@ -254,7 +304,7 @@ class _ChessPageState extends State<ChessPage> {
               game.forbiddenMoves.contains(move)
                   ? '这步会构成长将或长捉，请换一种走法。'
                   : showTargets
-                  ? '这里不能走，请选有圆点的位置。'
+                  ? '这里不能走，请选择标出的可走位置。'
                   : '这步不符合走棋规则，请重新选择位置。',
               style: const TextStyle(fontSize: 22),
             ),
@@ -362,12 +412,14 @@ class _ChessPageState extends State<ChessPage> {
       ),
     );
     if (yes == true && mounted) {
-      setState(() {
-        selected = null;
-        hintMove = null;
-        flipped = side == Side.black;
-      });
-      await game.newGame(side: side);
+      final before = game.position;
+      final completion = game.newGame(side: side);
+      // The controller publishes a prepared board before saving or searching.
+      // A failed preparation preserves the old board and its UI state.
+      if (!identical(before, game.position)) {
+        setState(() => flipped = game.playerSide == Side.black);
+      }
+      await completion;
     }
   }
 
@@ -394,8 +446,9 @@ class _ChessPageState extends State<ChessPage> {
   );
 
   Future<void> _hint() async {
+    final before = game.position;
     final move = await game.hint();
-    if (mounted && move != null) {
+    if (mounted && move != null && identical(before, game.position)) {
       setState(() {
         selected = move.from;
         hintMove = move;
@@ -413,67 +466,26 @@ class _ChessPageState extends State<ChessPage> {
   );
 
   void _review() {
-    final positions = game.history, moves = game.moves;
-    var step = positions.length - 1;
+    final record = GameRecord.fromHistory(
+      positions: game.history,
+      moves: game.moves,
+      playerSide: game.playerSide,
+      level: game.level,
+      outcome: game.result,
+    );
+    final reviewFlipped = flipped;
     showDialog<void>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, update) => Dialog(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '回看棋局 · 第 $step 步',
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ChessBoard(
-                    position: positions[step],
-                    selected: null,
-                    targets: const {},
-                    lastMove: step == 0 ? null : moves[step - 1],
-                    onTap: (_) {},
-                    enabled: false,
-                    flipped: flipped,
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      OutlinedButton(
-                        onPressed: step > 0
-                            ? () => update(() => step = 0)
-                            : null,
-                        child: const Text('开局'),
-                      ),
-                      OutlinedButton(
-                        onPressed: step > 0 ? () => update(() => step--) : null,
-                        child: const Text('上一步'),
-                      ),
-                      OutlinedButton(
-                        onPressed: step < positions.length - 1
-                            ? () => update(() => step++)
-                            : null,
-                        child: const Text('下一步'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('回到棋桌'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+      builder: (context) => GameReviewDialog(
+        record: record,
+        boardBuilder: (position, lastMove) => ChessBoard(
+          position: position,
+          selected: null,
+          targets: const {},
+          lastMove: lastMove,
+          onTap: (_) {},
+          enabled: false,
+          flipped: reviewFlipped,
         ),
       ),
     );
@@ -506,6 +518,15 @@ class _ChessPageState extends State<ChessPage> {
         Padding(
           padding: const EdgeInsets.only(top: 10),
           child: Text(game.notice!, style: const TextStyle(fontSize: 22)),
+        ),
+      Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Semantics(liveRegion: true, child: Text(_lastMoveFeedback)),
+      ),
+      if (_selectionFeedback case final feedback?)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Semantics(liveRegion: true, child: Text(feedback)),
         ),
       const SizedBox(height: 18),
       Row(
@@ -625,7 +646,11 @@ class _ChessPageState extends State<ChessPage> {
           : showTargets
           ? targets
           : {},
-      lastMove: hintMove ?? game.lastMove,
+      lastMove: game.lastMove,
+      suggestionMove: hintMove,
+      onCancelSelection: () {
+        if (selected != null) (onTap ?? _tap)(selected!);
+      },
       flipped: flipped,
       onTap: onTap ?? _tap,
       enabled:
@@ -732,7 +757,7 @@ class _ChessPageState extends State<ChessPage> {
                       ],
                       const SizedBox(height: 16),
                       const Text(
-                        '点自己的棋子，再点要走的位置。',
+                        '点自己的棋子，再点要走的位置。键盘可用方向键移动，回车或空格选子和落子，Esc 取消选子。',
                         style: TextStyle(fontSize: 22),
                       ),
                     ],
@@ -876,7 +901,7 @@ class _LargeBoardState extends State<_LargeBoard> {
   );
 }
 
-class ChessBoard extends StatelessWidget {
+class ChessBoard extends StatefulWidget {
   const ChessBoard({
     super.key,
     required this.position,
@@ -886,6 +911,8 @@ class ChessBoard extends StatelessWidget {
     required this.onTap,
     required this.enabled,
     this.flipped = false,
+    this.suggestionMove,
+    this.onCancelSelection,
   });
   final Position position;
   final int? selected;
@@ -894,156 +921,272 @@ class ChessBoard extends StatelessWidget {
   final ValueChanged<int> onTap;
   final bool enabled;
   final bool flipped;
+  final Move? suggestionMove;
+  final VoidCallback? onCancelSelection;
+
   @override
-  Widget build(BuildContext context) => AspectRatio(
-    aspectRatio: 9 / 10,
-    child: LayoutBuilder(
-      builder: (context, box) {
-        final cell = box.maxWidth / 9;
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            color: const Color(0xFFE8CEA3),
-            image: const DecorationImage(
-              image: AssetImage('assets/art/elm-wood.png'),
-              fit: BoxFit.cover,
-              opacity: 0.48,
-            ),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: const Color(0xFF70502E), width: 3),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x35000000),
-                blurRadius: 8,
-                offset: Offset(0, 4),
+  State<ChessBoard> createState() => _ChessBoardState();
+}
+
+class _ChessBoardState extends State<ChessBoard> {
+  final boardFocus = FocusNode(debugLabel: '棋盘');
+  final squareKeys = List.generate(90, (_) => GlobalKey());
+  late int cursor =
+      widget.selected ??
+      widget.position.board.indexWhere(
+        (piece) =>
+            piece?.side == widget.position.turn && piece?.kind == Kind.pawn,
+      );
+  Position get position => widget.position;
+  int? get selected => widget.selected;
+  Set<int> get targets => widget.targets;
+  Move? get lastMove => widget.lastMove;
+  Move? get suggestionMove => widget.suggestionMove;
+  bool get enabled => widget.enabled;
+  bool get flipped => widget.flipped;
+
+  @override
+  void initState() {
+    super.initState();
+    if (cursor < 0) cursor = 0;
+  }
+
+  @override
+  void dispose() {
+    boardFocus.dispose();
+    super.dispose();
+  }
+
+  void _revealCursor({bool towardStart = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !boardFocus.hasFocus) return;
+      final target = squareKeys[cursor].currentContext;
+      if (target != null) {
+        Scrollable.ensureVisible(
+          target,
+          alignmentPolicy: towardStart
+              ? ScrollPositionAlignmentPolicy.keepVisibleAtStart
+              : ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        );
+      }
+    });
+  }
+
+  KeyEventResult _key(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.escape &&
+        enabled &&
+        selected != null &&
+        widget.onCancelSelection != null) {
+      widget.onCancelSelection?.call();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.space) {
+      if (enabled && event is KeyDownEvent) widget.onTap(cursor);
+      return KeyEventResult.handled;
+    }
+    final (dr, dc) = switch (key) {
+      LogicalKeyboardKey.arrowUp => (-1, 0),
+      LogicalKeyboardKey.arrowDown => (1, 0),
+      LogicalKeyboardKey.arrowLeft => (0, -1),
+      LogicalKeyboardKey.arrowRight => (0, 1),
+      _ => (0, 0),
+    };
+    if (dr == 0 && dc == 0) return KeyEventResult.ignored;
+    final visual = flipped ? 89 - cursor : cursor;
+    final row = (visual ~/ 9 + dr).clamp(0, 9);
+    final col = (visual % 9 + dc).clamp(0, 8);
+    setState(() => cursor = flipped ? 89 - (row * 9 + col) : row * 9 + col);
+    _revealCursor(towardStart: dr < 0 || dc < 0);
+    return KeyEventResult.handled;
+  }
+
+  @override
+  Widget build(BuildContext context) => Focus(
+    focusNode: boardFocus,
+    onFocusChange: (_) {
+      setState(() {});
+    },
+    onKeyEvent: _key,
+    child: AspectRatio(
+      aspectRatio: 9 / 10,
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final cell = box.maxWidth / 9;
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8CEA3),
+              image: const DecorationImage(
+                image: AssetImage('assets/art/elm-wood.png'),
+                fit: BoxFit.cover,
+                opacity: 0.48,
               ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              Positioned.fill(child: CustomPaint(painter: _BoardPainter())),
-              for (var i = 0; i < 90; i++)
-                Positioned(
-                  left: (flipped ? 89 - i : i) % 9 * cell,
-                  top: (flipped ? 89 - i : i) ~/ 9 * cell,
-                  width: cell,
-                  height: cell,
-                  child: Semantics(
-                    button: true,
-                    enabled: enabled,
-                    selected: selected == i,
-                    label:
-                        '${i ~/ 9 + 1}行${i % 9 + 1}列，${position.board[i] == null ? '空位' : '${position.board[i]!.side == Side.red ? '红方' : '黑方'}${position.board[i]!.label}'}${targets.contains(i) ? '，可走' : ''}',
-                    child: Tooltip(
-                      message: '${i ~/ 9 + 1}行${i % 9 + 1}列',
-                      child: InkWell(
-                        onTap: enabled ? () => onTap(i) : null,
-                        child: AnimatedContainer(
-                          duration: MediaQuery.disableAnimationsOf(context)
-                              ? Duration.zero
-                              : const Duration(milliseconds: 140),
-                          margin: EdgeInsets.all(cell * 0.035),
-                          decoration: BoxDecoration(
-                            border: selected == i
-                                ? Border.all(
-                                    color: const Color(0xFF155D46),
-                                    width: 4,
-                                  )
-                                : (lastMove?.to == i || lastMove?.from == i)
-                                ? Border.all(
-                                    color: const Color(0xFF796020),
-                                    width: 2,
-                                  )
-                                : null,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              if (position.board[i] != null)
-                                Container(
-                                  width: cell * 0.84,
-                                  height: cell * 0.84,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: const RadialGradient(
-                                      center: Alignment(-0.2, -0.3),
-                                      colors: [
-                                        Color(0xFFFFEBC5),
-                                        Color(0xFFEAC58C),
-                                        Color(0xFFD3AA6A),
-                                      ],
-                                      stops: [0, 0.82, 1],
-                                    ),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Color(0x65000000),
-                                        offset: Offset(0, 2),
-                                        blurRadius: 2,
-                                      ),
-                                    ],
-                                    border: Border.all(
-                                      color: position.board[i]!.side == Side.red
-                                          ? red
-                                          : ink,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: const Color(0xFF70502E), width: 3),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x35000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                Positioned.fill(child: CustomPaint(painter: _BoardPainter())),
+                for (var i = 0; i < 90; i++)
+                  Positioned(
+                    left: (flipped ? 89 - i : i) % 9 * cell,
+                    top: (flipped ? 89 - i : i) ~/ 9 * cell,
+                    width: cell,
+                    height: cell,
+                    child: Semantics(
+                      key: squareKeys[i],
+                      button: true,
+                      enabled: enabled,
+                      selected: selected == i,
+                      focused: boardFocus.hasFocus && cursor == i,
+                      label:
+                          '${i ~/ 9 + 1}行${i % 9 + 1}列，${position.board[i] == null ? '空位' : '${position.board[i]!.side == Side.red ? '红方' : '黑方'}${position.board[i]!.label}'}${targets.contains(i) ? '，可走' : ''}${lastMove?.to == i ? '，上一步落点' : ''}${suggestionMove?.to == i ? '，建议落点' : ''}',
+                      child: Tooltip(
+                        message: '${i ~/ 9 + 1}行${i % 9 + 1}列',
+                        child: InkWell(
+                          canRequestFocus: false,
+                          onTap: enabled
+                              ? () {
+                                  setState(() => cursor = i);
+                                  boardFocus.requestFocus();
+                                  widget.onTap(i);
+                                }
+                              : null,
+                          child: AnimatedContainer(
+                            duration: MediaQuery.disableAnimationsOf(context)
+                                ? Duration.zero
+                                : const Duration(milliseconds: 140),
+                            margin: EdgeInsets.all(cell * 0.035),
+                            decoration: BoxDecoration(
+                              border: boardFocus.hasFocus && cursor == i
+                                  ? Border.all(
+                                      color: const Color(0xFF145AA3),
+                                      width: 4,
+                                    )
+                                  : selected == i
+                                  ? Border.all(
+                                      color: const Color(0xFF155D46),
+                                      width: 4,
+                                    )
+                                  : (lastMove?.to == i || lastMove?.from == i)
+                                  ? Border.all(
+                                      color: const Color(0xFF796020),
                                       width: 2,
+                                    )
+                                  : null,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                if (position.board[i] != null)
+                                  Container(
+                                    width: cell * 0.84,
+                                    height: cell * 0.84,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: const RadialGradient(
+                                        center: Alignment(-0.2, -0.3),
+                                        colors: [
+                                          Color(0xFFFFEBC5),
+                                          Color(0xFFEAC58C),
+                                          Color(0xFFD3AA6A),
+                                        ],
+                                        stops: [0, 0.82, 1],
+                                      ),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Color(0x65000000),
+                                          offset: Offset(0, 2),
+                                          blurRadius: 2,
+                                        ),
+                                      ],
+                                      border: Border.all(
+                                        color:
+                                            position.board[i]!.side == Side.red
+                                            ? red
+                                            : ink,
+                                        width: 2,
+                                      ),
                                     ),
-                                  ),
-                                  child: Center(
-                                    child: ExcludeSemantics(
-                                      child: Text(
-                                        position.board[i]!.label,
-                                        textScaler: TextScaler.noScaling,
-                                        style: TextStyle(
-                                          fontFamily: 'Microsoft YaHei',
-                                          fontFamilyFallback: const [
-                                            'Noto Sans CJK SC',
-                                            'sans-serif',
-                                          ],
-                                          fontSize: cell * 0.57,
-                                          height: 1,
-                                          fontWeight: FontWeight.w800,
-                                          color:
-                                              position.board[i]!.side ==
-                                                  Side.red
-                                              ? red
-                                              : ink,
+                                    child: Center(
+                                      child: ExcludeSemantics(
+                                        child: Text(
+                                          position.board[i]!.label,
+                                          textScaler: TextScaler.noScaling,
+                                          style: TextStyle(
+                                            fontFamily: 'Microsoft YaHei',
+                                            fontFamilyFallback: const [
+                                              'Noto Sans CJK SC',
+                                              'sans-serif',
+                                            ],
+                                            fontSize: cell * 0.57,
+                                            height: 1,
+                                            fontWeight: FontWeight.w800,
+                                            color:
+                                                position.board[i]!.side ==
+                                                    Side.red
+                                                ? red
+                                                : ink,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              if (targets.contains(i))
-                                Container(
-                                  width: position.board[i] == null
-                                      ? cell * 0.23
-                                      : cell * 0.9,
-                                  height: position.board[i] == null
-                                      ? cell * 0.23
-                                      : cell * 0.9,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: position.board[i] == null
-                                        ? const Color(0xFF155D46)
-                                        : null,
-                                    border: position.board[i] == null
-                                        ? null
-                                        : Border.all(
-                                            color: const Color(0xFF155D46),
-                                            width: 4,
-                                          ),
+                                if (targets.contains(i))
+                                  Container(
+                                    width: position.board[i] == null
+                                        ? cell * 0.23
+                                        : cell * 0.9,
+                                    height: position.board[i] == null
+                                        ? cell * 0.23
+                                        : cell * 0.9,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: position.board[i] == null
+                                          ? const Color(0xFF155D46)
+                                          : null,
+                                      border: position.board[i] == null
+                                          ? null
+                                          : Border.all(
+                                              color: const Color(0xFF155D46),
+                                              width: 4,
+                                            ),
+                                    ),
                                   ),
-                                ),
-                            ],
+                                if (suggestionMove?.from == i ||
+                                    suggestionMove?.to == i)
+                                  Positioned(
+                                    right: 2,
+                                    top: 2,
+                                    child: Icon(
+                                      Icons.lightbulb,
+                                      size: cell * .28,
+                                      color: const Color(0xFF145AA3),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     ),
   );
 }

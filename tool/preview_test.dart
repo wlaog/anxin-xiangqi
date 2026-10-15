@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:anxin_xiangqi/main.dart';
 import 'package:anxin_xiangqi/application/game_controller.dart';
 import 'package:anxin_xiangqi/application/user_preferences.dart';
+import 'package:anxin_xiangqi/domain/xiangqi.dart';
 
 import '../test/controller_test.dart' show MemoryStore, ImmediateAi;
 
@@ -29,6 +30,7 @@ void main() {
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
     });
     Future<void> capture(GlobalKey key, String name) async {
       final boundary =
@@ -81,6 +83,9 @@ void main() {
         await capture(key, 'windows-confirmation');
         await tester.tap(find.text('再想想'));
         await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('人机对弈'));
+        await tester.pumpAndSettle();
+        await capture(key, 'windows-selected');
         await tester.ensureVisible(find.text('放大棋盘'));
         await tester.tap(find.text('放大棋盘'));
         await tester.pumpAndSettle();
@@ -88,6 +93,28 @@ void main() {
         await tester.pumpAndSettle();
         await capture(key, 'windows-large-board');
         await tester.tap(find.text('回到棋桌'));
+        await tester.pumpAndSettle();
+        await game.setPreferences(const UserPreferences());
+        await game.play(const Move(54, 45));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('人机对弈'));
+        await tester.pumpAndSettle();
+        await capture(key, 'windows-response');
+        await tester.ensureVisible(find.text('回看棋局'));
+        await tester.tap(find.text('回看棋局'));
+        await tester.pumpAndSettle();
+        await capture(key, 'windows-review');
+        await tester.tap(find.text('回到棋桌'));
+        await tester.pumpAndSettle();
+        tester.view.physicalSize = const Size(360, 800);
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        await game.setPreferences(const UserPreferences(textScale: 1.4));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('回看棋局'));
+        await tester.tap(find.text('回看棋局'));
+        await tester.pumpAndSettle();
+        await capture(key, 'windows-review-narrow-large-text');
+        await tester.tap(find.text('返回'));
         await tester.pumpAndSettle();
       }
       expect(tester.takeException(), isNull);

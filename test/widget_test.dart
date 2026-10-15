@@ -234,7 +234,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('上一步'));
     await tester.pumpAndSettle();
-    expect(find.text('回看棋局 · 第 1 步'), findsOneWidget);
+    expect(find.text('回看棋局 · 第 1 步 / 共 2 步'), findsOneWidget);
     expect(game.position.key, before);
     await tester.tap(find.text('回到棋桌'));
     await tester.pumpAndSettle();
