@@ -2,6 +2,8 @@
 
 给长辈的一张清楚、安静、随时能接着下的棋桌。开源、离线、人机对弈，目标平台 Windows 与 Android。
 
+源码仓库：[wlaog/anxin-xiangqi](https://github.com/wlaog/anxin-xiangqi)，主分支 `main`。下文 `artifacts/` 链接指向本地生成的文件，不随 Git 上传；当前尚未发布 GitHub Release 安装包。
+
 ## 当前 Windows 版：0.3.0
 
 当前优先完善 Windows，Android / SDK 工作暂停。新增可保存的大字设置、可选落子确认、减少动效、放大棋盘中继续对弈及桌面侧栏独立滚动。放大视图棋格至少 60 逻辑像素，可拖动滚动条查看整盘；文字放大不会挤压棋子字形。
@@ -27,6 +29,8 @@
 开发验证版本：Flutter 3.47.7 / Dart 3.13.5、Windows x64 MinGW-w64 GCC 14.2.0（引擎）、Visual Studio 2022（Flutter 外壳）。普通 Git 克隆需要递归子模块；源码发行包已内含上游源码。
 
 ```powershell
+git clone --recurse-submodules https://github.com/wlaog/anxin-xiangqi.git
+cd anxin-xiangqi
 git submodule update --init --recursive
 python scripts/fetch-engine.py
 .\scripts\build-native.ps1 -Compiler 'g++.exe' -Make 'mingw32-make.exe'
