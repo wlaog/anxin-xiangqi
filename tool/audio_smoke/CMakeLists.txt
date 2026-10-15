@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.14)
+project(anxin_audio_smoke LANGUAGES CXX)
+add_executable(audio_smoke "main.cpp" "../../windows/runner/audio_output.cpp")
+target_compile_features(audio_smoke PRIVATE cxx_std_17)
+target_compile_definitions(audio_smoke PRIVATE NOMINMAX UNICODE _UNICODE)
+target_link_libraries(audio_smoke PRIVATE winmm sapi ole32)

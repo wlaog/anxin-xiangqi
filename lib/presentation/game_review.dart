@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../domain/game_record.dart';
 import '../domain/xiangqi.dart';
+import '../domain/study.dart' show studySummary;
 
 /// A review owns the record captured when it opens, even if play continues.
 class GameReviewDialog extends StatefulWidget {
@@ -13,9 +14,11 @@ class GameReviewDialog extends StatefulWidget {
     required this.record,
     required this.boardBuilder,
     this.contextDescription,
+    this.returnLabel = '回到棋桌',
   });
   final GameRecord record;
   final String? contextDescription;
+  final String returnLabel;
   final Widget Function(Position position, Move? lastMove) boardBuilder;
 
   @override
@@ -107,9 +110,7 @@ class _GameReviewDialogState extends State<GameReviewDialog> {
       ],
       Semantics(
         liveRegion: true,
-        child: Text(
-          step == 0 ? '开局，红方先走' : widget.record.entries[step - 1].description,
-        ),
+        child: Text(studySummary(widget.record, step)),
       ),
       if (compact)
         Padding(
@@ -302,7 +303,10 @@ class _GameReviewDialogState extends State<GameReviewDialog> {
                               ),
                             ),
                             onPressed: () => Navigator.pop(context),
-                            child: const Text('返回', semanticsLabel: '回到棋桌'),
+                            child: Text(
+                              '返回',
+                              semanticsLabel: widget.returnLabel,
+                            ),
                           ),
                         ),
                       ],
@@ -317,7 +321,7 @@ class _GameReviewDialogState extends State<GameReviewDialog> {
                         ),
                         FilledButton(
                           onPressed: () => Navigator.pop(context),
-                          child: const Text('回到棋桌'),
+                          child: Text(widget.returnLabel),
                         ),
                       ],
                     ),

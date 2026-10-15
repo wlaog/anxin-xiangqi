@@ -1,17 +1,23 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'application/game_controller.dart';
 import 'application/game_library.dart';
+import 'application/study_notebook.dart';
 import 'domain/xiangqi.dart';
 import 'domain/game_record.dart';
 import 'infrastructure/game_store.dart';
 import 'infrastructure/library_file_store.dart';
 import 'infrastructure/pikafish.dart';
+import 'infrastructure/audio_feedback.dart';
 import 'presentation/game_review.dart';
 import 'presentation/game_library_dialog.dart';
+import 'presentation/study_dialog.dart';
+import 'presentation/chess_board.dart';
+import 'presentation/palette.dart';
+
+export 'presentation/chess_board.dart' show ChessBoard;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,13 +52,10 @@ Future<void> main() async {
   }
 }
 
-const ink = Color(0xFF3E2E22);
-const paper = Color(0xFFF1E8D8);
-const red = Color(0xFF9D2927);
-
 class AnxinApp extends StatelessWidget {
-  const AnxinApp({super.key, required this.controller});
+  const AnxinApp({super.key, required this.controller, this.notebook});
   final GameController controller;
+  final StudyNotebook? notebook;
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
@@ -125,7 +128,7 @@ class AnxinApp extends StatelessWidget {
           ),
         ),
       ),
-      home: ChessPage(controller: controller),
+      home: ChessPage(controller: controller, notebook: notebook),
     ),
   );
 }
@@ -141,14 +144,19 @@ class _EnlargedTextScaler extends TextScaler {
 }
 
 class ChessPage extends StatefulWidget {
-  const ChessPage({super.key, this.controller});
+  const ChessPage({super.key, this.controller, this.notebook});
   final GameController? controller;
+  final StudyNotebook? notebook;
   @override
   State<ChessPage> createState() => _ChessPageState();
 }
 
 class _ChessPageState extends State<ChessPage> {
   late final GameController game;
+  late final StudyNotebook notebook;
+  final audio = AudioFeedback();
+  final audioStatus = ValueNotifier<String?>(null);
+  String? get audioNotice => audioStatus.value;
   int? selected;
   bool get showTargets => game.preferences.showTargets;
   bool flipped = false;
@@ -162,6 +170,7 @@ class _ChessPageState extends State<ChessPage> {
   @override
   void initState() {
     super.initState();
+    notebook = widget.notebook ?? StudyNotebook(LibraryFileStore.study());
     game = widget.controller ?? (throw StateError('请先准备本地引擎，再创建棋桌'));
     game.addListener(_changed);
     flipped = game.playerSide == Side.black;
@@ -175,6 +184,12 @@ class _ChessPageState extends State<ChessPage> {
   }
 
   void _changed() {
+    if (previousGameId == game.gameId &&
+        previousPly >= 0 &&
+        game.ply == previousPly + 1 &&
+        previousPosition != null) {
+      _audioMove(previousPosition!, game.lastMove!, game.position);
+    }
     if ((previousPly < 0 || previousGameId != game.gameId) && game.ready) {
       flipped = game.playerSide == Side.black;
       previousGameId = game.gameId;
@@ -229,9 +244,31 @@ class _ChessPageState extends State<ChessPage> {
   @override
   void dispose() {
     game.removeListener(_changed);
+    if (widget.notebook == null) notebook.dispose();
+    audio.stop();
+    audioStatus.dispose();
     controlsScroll.dispose();
     if (widget.controller == null) game.dispose();
     super.dispose();
+  }
+
+  Future<void> _audioMove(Position before, Move move, Position after) async {
+    final notice = await audio.move(before, move, after, game.preferences);
+    if (mounted && notice != audioNotice) {
+      setState(() => audioStatus.value = notice);
+    }
+  }
+
+  Future<void> _testAudio(bool speech) async {
+    final notice = await audio.play(
+      cue: 'check',
+      text: '红方走棋。将军，请先应将。',
+      sound: !speech,
+      speech: speech,
+    );
+    if (mounted) {
+      setState(() => audioStatus.value = notice ?? '已请求播放，请确认能听到声音。');
+    }
   }
 
   Future<void> _tap(int index) async {
@@ -367,6 +404,46 @@ class _ChessPageState extends State<ChessPage> {
                 ),
               ),
               const Text('设置会自动保存。文字会继续跟随系统放大。'),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('走棋提示音'),
+                subtitle: const Text('落子、吃子和将军使用不同声音'),
+                value: game.preferences.sound,
+                onChanged: (v) {
+                  if (!v) audio.stop();
+                  game.setPreferences(game.preferences.copyWith(sound: v));
+                },
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('语音报棋'),
+                subtitle: const Text('使用本机中文语音，不联网。新着法会打断上一句。'),
+                value: game.preferences.speech,
+                onChanged: (v) {
+                  if (!v) audio.stop();
+                  game.setPreferences(game.preferences.copyWith(speech: v));
+                },
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => _testAudio(false),
+                    child: const Text('试听声音'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () => _testAudio(true),
+                    child: const Text('试听报棋'),
+                  ),
+                ],
+              ),
+              ValueListenableBuilder<String?>(
+                valueListenable: audioStatus,
+                builder: (context, notice, _) => notice == null
+                    ? const SizedBox.shrink()
+                    : Semantics(liveRegion: true, child: Text(notice)),
+              ),
             ],
           ),
         ),
@@ -439,6 +516,7 @@ class _ChessPageState extends State<ChessPage> {
           '红棋先走。先点自己的棋子，再点有圆点的位置。新开局时可选执红或执黑。\n\n'
           '“悔一步”会回到您上次落子前。关闭后自动续局，不需要登录或联网。\n\n'
           '重新开始前会先保存旧盘。点“我的棋局”可以回看、改名、收藏或继续以前的棋；“保存本局”会保留当前走到的位置。\n\n'
+          '“练习与研究”里可做原创小题、学习棋子走法、摆棋和试走两边。回退后另走会保留原路线；重要试走请点“保存研究”。“使用设置”可开启声音与语音并试听。\n\n'
           '将死或无棋可走均判负。长将、长捉由本地引擎判断：违规一方需要换走法，不能换时判负。双方允许不变的重复局面才判和棋。采用公开 Pikafish 的规则口径，未宣称与腾讯或所有竞赛规则完全一致。\n\n'
           '五档电脑都在本机思考。“帮我想想”只提示，不代您落子。“回看棋局”不改变当前棋局。小屏手机建议横向放大或使用平板。',
           style: TextStyle(fontSize: 22),
@@ -632,6 +710,17 @@ class _ChessPageState extends State<ChessPage> {
       ),
       const SizedBox(height: 12),
       OutlinedButton(onPressed: _largeBoard, child: const Text('放大棋盘')),
+      const SizedBox(height: 12),
+      OutlinedButton(
+        onPressed: game.ready && !game.busy
+            ? () => showDialog<void>(
+                context: context,
+                builder: (_) => StudyDialog(game: game, notebook: notebook),
+              )
+            : null,
+        child: const Text('练习与研究'),
+      ),
+      if (audioNotice != null) Text(audioNotice!),
       if (game.library != null) ...[
         const SizedBox(height: 12),
         OutlinedButton(
@@ -930,340 +1019,4 @@ class _LargeBoardState extends State<_LargeBoard> {
       ),
     ),
   );
-}
-
-class ChessBoard extends StatefulWidget {
-  const ChessBoard({
-    super.key,
-    required this.position,
-    required this.selected,
-    required this.targets,
-    required this.lastMove,
-    required this.onTap,
-    required this.enabled,
-    this.flipped = false,
-    this.suggestionMove,
-    this.onCancelSelection,
-  });
-  final Position position;
-  final int? selected;
-  final Set<int> targets;
-  final Move? lastMove;
-  final ValueChanged<int> onTap;
-  final bool enabled;
-  final bool flipped;
-  final Move? suggestionMove;
-  final VoidCallback? onCancelSelection;
-
-  @override
-  State<ChessBoard> createState() => _ChessBoardState();
-}
-
-class _ChessBoardState extends State<ChessBoard> {
-  final boardFocus = FocusNode(debugLabel: '棋盘');
-  final squareKeys = List.generate(90, (_) => GlobalKey());
-  late int cursor =
-      widget.selected ??
-      widget.position.board.indexWhere(
-        (piece) =>
-            piece?.side == widget.position.turn && piece?.kind == Kind.pawn,
-      );
-  Position get position => widget.position;
-  int? get selected => widget.selected;
-  Set<int> get targets => widget.targets;
-  Move? get lastMove => widget.lastMove;
-  Move? get suggestionMove => widget.suggestionMove;
-  bool get enabled => widget.enabled;
-  bool get flipped => widget.flipped;
-
-  @override
-  void initState() {
-    super.initState();
-    if (cursor < 0) cursor = 0;
-  }
-
-  @override
-  void dispose() {
-    boardFocus.dispose();
-    super.dispose();
-  }
-
-  void _revealCursor({bool towardStart = false}) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !boardFocus.hasFocus) return;
-      final target = squareKeys[cursor].currentContext;
-      if (target != null) {
-        Scrollable.ensureVisible(
-          target,
-          alignmentPolicy: towardStart
-              ? ScrollPositionAlignmentPolicy.keepVisibleAtStart
-              : ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-        );
-      }
-    });
-  }
-
-  KeyEventResult _key(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-      return KeyEventResult.ignored;
-    }
-    final key = event.logicalKey;
-    if (key == LogicalKeyboardKey.escape &&
-        enabled &&
-        selected != null &&
-        widget.onCancelSelection != null) {
-      widget.onCancelSelection?.call();
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.space) {
-      if (enabled && event is KeyDownEvent) widget.onTap(cursor);
-      return KeyEventResult.handled;
-    }
-    final (dr, dc) = switch (key) {
-      LogicalKeyboardKey.arrowUp => (-1, 0),
-      LogicalKeyboardKey.arrowDown => (1, 0),
-      LogicalKeyboardKey.arrowLeft => (0, -1),
-      LogicalKeyboardKey.arrowRight => (0, 1),
-      _ => (0, 0),
-    };
-    if (dr == 0 && dc == 0) return KeyEventResult.ignored;
-    final visual = flipped ? 89 - cursor : cursor;
-    final row = (visual ~/ 9 + dr).clamp(0, 9);
-    final col = (visual % 9 + dc).clamp(0, 8);
-    setState(() => cursor = flipped ? 89 - (row * 9 + col) : row * 9 + col);
-    _revealCursor(towardStart: dr < 0 || dc < 0);
-    return KeyEventResult.handled;
-  }
-
-  @override
-  Widget build(BuildContext context) => Focus(
-    focusNode: boardFocus,
-    onFocusChange: (_) {
-      setState(() {});
-    },
-    onKeyEvent: _key,
-    child: AspectRatio(
-      aspectRatio: 9 / 10,
-      child: LayoutBuilder(
-        builder: (context, box) {
-          final cell = box.maxWidth / 9;
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8CEA3),
-              image: const DecorationImage(
-                image: AssetImage('assets/art/elm-wood.png'),
-                fit: BoxFit.cover,
-                opacity: 0.48,
-              ),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFF70502E), width: 3),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x35000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                Positioned.fill(child: CustomPaint(painter: _BoardPainter())),
-                for (var i = 0; i < 90; i++)
-                  Positioned(
-                    left: (flipped ? 89 - i : i) % 9 * cell,
-                    top: (flipped ? 89 - i : i) ~/ 9 * cell,
-                    width: cell,
-                    height: cell,
-                    child: Semantics(
-                      key: squareKeys[i],
-                      button: true,
-                      enabled: enabled,
-                      selected: selected == i,
-                      focused: boardFocus.hasFocus && cursor == i,
-                      label:
-                          '${i ~/ 9 + 1}行${i % 9 + 1}列，${position.board[i] == null ? '空位' : '${position.board[i]!.side == Side.red ? '红方' : '黑方'}${position.board[i]!.label}'}${targets.contains(i) ? '，可走' : ''}${lastMove?.to == i ? '，上一步落点' : ''}${suggestionMove?.to == i ? '，建议落点' : ''}',
-                      child: Tooltip(
-                        message: '${i ~/ 9 + 1}行${i % 9 + 1}列',
-                        child: InkWell(
-                          canRequestFocus: false,
-                          onTap: enabled
-                              ? () {
-                                  setState(() => cursor = i);
-                                  boardFocus.requestFocus();
-                                  widget.onTap(i);
-                                }
-                              : null,
-                          child: AnimatedContainer(
-                            duration: MediaQuery.disableAnimationsOf(context)
-                                ? Duration.zero
-                                : const Duration(milliseconds: 140),
-                            margin: EdgeInsets.all(cell * 0.035),
-                            decoration: BoxDecoration(
-                              border: boardFocus.hasFocus && cursor == i
-                                  ? Border.all(
-                                      color: const Color(0xFF145AA3),
-                                      width: 4,
-                                    )
-                                  : selected == i
-                                  ? Border.all(
-                                      color: const Color(0xFF155D46),
-                                      width: 4,
-                                    )
-                                  : (lastMove?.to == i || lastMove?.from == i)
-                                  ? Border.all(
-                                      color: const Color(0xFF796020),
-                                      width: 2,
-                                    )
-                                  : null,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                if (position.board[i] != null)
-                                  Container(
-                                    width: cell * 0.84,
-                                    height: cell * 0.84,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: const RadialGradient(
-                                        center: Alignment(-0.2, -0.3),
-                                        colors: [
-                                          Color(0xFFFFEBC5),
-                                          Color(0xFFEAC58C),
-                                          Color(0xFFD3AA6A),
-                                        ],
-                                        stops: [0, 0.82, 1],
-                                      ),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(0x65000000),
-                                          offset: Offset(0, 2),
-                                          blurRadius: 2,
-                                        ),
-                                      ],
-                                      border: Border.all(
-                                        color:
-                                            position.board[i]!.side == Side.red
-                                            ? red
-                                            : ink,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: Center(
-                                      child: ExcludeSemantics(
-                                        child: Text(
-                                          position.board[i]!.label,
-                                          textScaler: TextScaler.noScaling,
-                                          style: TextStyle(
-                                            fontFamily: 'Microsoft YaHei',
-                                            fontFamilyFallback: const [
-                                              'Noto Sans CJK SC',
-                                              'sans-serif',
-                                            ],
-                                            fontSize: cell * 0.57,
-                                            height: 1,
-                                            fontWeight: FontWeight.w800,
-                                            color:
-                                                position.board[i]!.side ==
-                                                    Side.red
-                                                ? red
-                                                : ink,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                if (targets.contains(i))
-                                  Container(
-                                    width: position.board[i] == null
-                                        ? cell * 0.23
-                                        : cell * 0.9,
-                                    height: position.board[i] == null
-                                        ? cell * 0.23
-                                        : cell * 0.9,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: position.board[i] == null
-                                          ? const Color(0xFF155D46)
-                                          : null,
-                                      border: position.board[i] == null
-                                          ? null
-                                          : Border.all(
-                                              color: const Color(0xFF155D46),
-                                              width: 4,
-                                            ),
-                                    ),
-                                  ),
-                                if (suggestionMove?.from == i ||
-                                    suggestionMove?.to == i)
-                                  Positioned(
-                                    right: 2,
-                                    top: 2,
-                                    child: Icon(
-                                      Icons.lightbulb,
-                                      size: cell * .28,
-                                      color: const Color(0xFF145AA3),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        },
-      ),
-    ),
-  );
-}
-
-class _BoardPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cell = size.width / 9;
-    final pen = Paint()
-      ..color = const Color(0xFF76512D)
-      ..strokeWidth = 1.3;
-    Offset at(double col, double row) =>
-        Offset((col + 0.5) * cell, (row + 0.5) * cell);
-    for (var row = 0; row < 10; row++) {
-      canvas.drawLine(at(0, row.toDouble()), at(8, row.toDouble()), pen);
-    }
-    for (var col = 0; col < 9; col++) {
-      if (col == 0 || col == 8) {
-        canvas.drawLine(at(col.toDouble(), 0), at(col.toDouble(), 9), pen);
-      } else {
-        canvas.drawLine(at(col.toDouble(), 0), at(col.toDouble(), 4), pen);
-        canvas.drawLine(at(col.toDouble(), 5), at(col.toDouble(), 9), pen);
-      }
-    }
-    for (final row in [0.0, 7.0]) {
-      canvas.drawLine(at(3, row), at(5, row + 2), pen);
-      canvas.drawLine(at(5, row), at(3, row + 2), pen);
-    }
-    final label = TextPainter(
-      text: TextSpan(
-        text: '楚 河        汉 界',
-        style: TextStyle(
-          fontFamily: 'Microsoft YaHei',
-          fontSize: cell * 0.38,
-          color: ink,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    label.paint(
-      canvas,
-      Offset((size.width - label.width) / 2, 5 * cell - label.height / 2),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_BoardPainter oldDelegate) => false;
 }

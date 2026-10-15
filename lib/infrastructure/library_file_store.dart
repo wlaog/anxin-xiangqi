@@ -7,8 +7,10 @@ import 'game_store.dart';
 /// Owns a separate library file, a previous copy, and its temporary writes.
 /// Replacements stay on one volume. A missing primary can use the backup.
 class LibraryFileStore implements GameStore {
-  LibraryFileStore({this.directory});
+  LibraryFileStore({this.directory}) : _folder = 'chess-library';
+  LibraryFileStore.study({this.directory}) : _folder = 'study-notebook';
   final Directory? directory;
+  final String _folder;
   Future<Directory>? _root;
   bool _readOnce = false;
   String? _baseline;
@@ -16,7 +18,7 @@ class LibraryFileStore implements GameStore {
 
   Future<Directory> _location() => _root ??= directory == null
       ? getApplicationSupportDirectory().then(
-          (base) => Directory('${base.path}/chess-library'),
+          (base) => Directory('${base.path}/$_folder'),
         )
       : Future.value(directory);
 

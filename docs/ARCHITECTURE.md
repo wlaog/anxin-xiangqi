@@ -12,11 +12,16 @@
 - `lib/domain/ai.dart`：第一版 Dart 搜索，保留作测试/开发。生产通过 `domain/rules.dart` 的边界接原生 AI 与裁决器。
 - `lib/application/game_controller.dart`：玩家行动、AI 请求代次、悔棋、保存恢复。新局、悔棋、退出使过期 AI 结果失效。
 - `lib/infrastructure/game_store.dart`：本地保存，版本化 JSON；先验证再替换当前棋局。坏档不崩溃、不静默覆盖，显示可恢复错误。
-- `lib/main.dart`：简体中文大字界面、自绘棋盘、可访问棋盘格、设置和确认。
+- `lib/main.dart`：应用组合、棋桌、设置和确认；`presentation/chess_board.dart` 统一拥有实盘、练习和回看的自绘棋盘及键盘操作，`palette.dart` 拥有共用颜色，练习界面不反向依赖应用入口。
 - `lib/presentation/game_review.dart`：快照回看、按需构建的走棋列表、前后/首末/点选导航与用户主动复制。打开后不跟随实盘变化。
 - `lib/application/game_library.dart`：棋谱身份、名称收藏、损坏条目隔离和串行写入。保留无法解析的原条目，存储成功后才提交新列表，禁止整库读取失败后写空库。
 - `lib/infrastructure/library_file_store.dart`：应用支持目录下 `chess-library/games.json`；临时文件落盘后替换主文件，并保留 `games.previous.json`。主文件缺失时可读备份；主文件存在但内容损坏时不静默回滚。使用文件锁和已读内容检查拒绝覆盖其他窗口的修改。临时目录由写入者创建，清理失败仍保留所有权供后续重试。
 - `lib/presentation/game_library_dialog.dart`：当前盘置顶、保存副本、收藏过滤与按需构建的棋谱列表。回看不改实盘，继续旧盘先保存当前盘；删除须确认。
+- `lib/domain/study.dart`：自定义局面的边界校验、分支节点身份、导入导出子集及事实复盘说明。`StudyTree` 用父节点编号表达唯一分支，派生的不可变 `GameSession` 缓存在树的生命周期内，跳转不反复重放前缀；最多 512 个节点。所有路径共用既有规则边界，先得到合法候选状态再加入节点。
+- `lib/domain/lessons.dart`：13 个自有一步任务、提示与目标判定。任务接受合法的目标着法，生产可走集合和终局仍由固定 Pikafish 裁决；没有借用原 APK 题库。
+- `lib/application/study_notebook.dart`：串行保存题目进度、错题状态和一份研究草稿，写入成功后提交。生产使用 `LibraryFileStore.study()`，应用支持目录为 `study-notebook/`，复用已有备份、临时文件及外部变化检查，没有复制另一份文件替换逻辑。整个记录及导入文字各限制为 256×1024 个 UTF-16 代码单元；损坏外壳禁止覆盖。
+- `lib/presentation/study_dialog.dart`：练习与研究的独立副本，摆棋编辑中不调用原生裁决，开始试走前才校验；导入完整候选成功后才替换，换研究和覆盖已保存草稿可取消。自由研究须主动保存；练习结果自动保存。电脑建议不自动落子，关闭界面后迟到结果不写回。
+- `lib/infrastructure/audio_feedback.dart`：可选方法通道，不把声音失败变成走棋失败。`windows/runner/audio_output.*` 拥有原生本地输出，三种自有合成短音的静态缓冲区保留到异步播放结束，SAPI 选择已安装普通话语音并异步报棋；新报棋清除旧队列，窗口关闭先停止并释放语音，再销毁 Flutter 控制器。`audio_feedback.*` 仅作宿主参数校验和适配；不安装声音、不联网。
 
 生产 AI 与裁决器为公开 Pikafish 的 C ABI 动态库，固定版本见 [ENGINE.md](ENGINE.md)。`lib/infrastructure/pikafish.dart` 通过 FFI 调用；完整走棋历史交给原生裁决，搜索在 isolate 运行。单线程、32 MiB Hash，五档搜索预算，低档和开局在接近最佳候选中变化。产品不静默回退到第一版搜索或第一个合法着法。
 

@@ -2,6 +2,21 @@
 
 日期：2026-10-15（Asia/Shanghai）。
 
+## Windows 0.6.0 离线练习 Demo
+
+分支 `feat/offline-learning-demo`，版本 `0.6.0+6`。报告建议的八项功能各有可操作的演示流程，范围见 [演示说明](DEMO-0.6.md)；不是完整题库、完整棋谱格式兼容或整份报告的正式产品验收。只做本地提交、Windows 构建与打包，不推送或发布，Android 仍暂停。
+
+- `flutter test --no-pub --reporter expanded`：完整 **101 项通过**，其中新增 16 项；最后完整测试日志为忽略的 `artifacts/study-all-tests.log`。包含全部原有真实 Pikafish / NNUE 回归，以及 13 道自有小题的真实原生合法着法、目标终局、局面与坐标导出导入、变着分支和自定义局面建议检查。两道镜像残局在说明中明示，未把题数当作独立战术类型数。
+- 领域与存储检查：非法将帅、仕相、兵卒、棋子数量、照面和计数拒绝；分支前缀复用、回退换路和完整研究往返；非法后续、重复节点、分支环、未知格式及过长文字拒绝；错题、练过状态串行更新；写失败不提交、重试恢复；坏档保留。练习笔记使用真实临时目录检查备份、重开、第二实例外部修改拒绝覆盖；与 0.5 共用同一文件存储实现。
+- 界面检查：实盘入口、答错保持棋盘、错题再练、答对保存、回退保留两条路线、保存与继续研究、完整分支剪贴板导出导入、导入失败保留当前研究、简洁复盘、摆棋错误与成功、覆盖草稿取消及写失败重试、关闭研究后迟到建议不改实盘。360×800 与 640×360 使用 2.8 倍文字检查选题、提示、摆棋、导入取消和返回。剪贴板和失败通道用替身，未冒充真实系统剪贴板全量验收。
+- `flutter analyze --no-pub` 最终无问题；初次检查中类型、模式表达式、导入与大括号 lint 已修正。早期用例把“无棋可走”全当成“将军”，已改为分别检查真实将军状态；另修正了嵌套弹窗测试定位到下层返回按钮的漏验，最终用例明确确认复盘已关闭。
+- `cmake -S tool/audio_smoke -B artifacts/audio-smoke -G "Visual Studio 17 2022" -A x64` 和 Release 构建实际运行，通过同一生产 `audio_output.cpp` 检查三种提示音、普通话 SAPI 请求和非法类型拒绝，全部返回成功。结果在忽略的 `artifacts/audio-smoke-result.txt`；此检查证明 API 接受请求，不证明人耳听到或音色适宜。异步播放内存保留与语音清队列使用微软文档规定的生命周期，参考 [PlaySound](https://learn.microsoft.com/it-it/previous-versions/dd743680%28v%3Dvs.85%29) 和 [ISpVoice::Speak](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ee125024%28v%3Dvs.85%29)。
+- 已用 computer-use 启动真实 Release 程序，打开“练习与研究”，选择“双车封住宫门”，实际点击红车完成题目，看到完成提示和 1/13 进度，再返回原有执黑实盘，棋盘保持原样；在真实设置中调用了提示音、中文报棋试听，均显示成功返回。本次验收留下这一道示例练习进度，没有删除原棋局。发现试听结果在设置弹窗后面后，将状态移至弹窗内，并用界面故障注入测试检查错误提示确实出现在设置弹窗中。最终构建再次打开真实设置、试听报棋并滚动查看，已确认成功提示位于弹窗内；本次启动的窗口均已关闭。
+- `ANXIN_PREVIEW_FONT=C:/Windows/Fonts/msyh.ttc` 下运行 `flutter test tool/study_preview_test.dart --no-pub --reporter expanded`：1 项通过。目视检查桌面残局、编辑器、分支，以及窄屏和横屏大字共 5 幅预览；都在忽略的 `artifacts/previews/windows-study-*.png`。这些文件是 Flutter 测试渲染，实际程序另由上面的 GUI 检查验证；本机字体未打包。
+- `flutter build windows --release --no-pub` 成功，EXE 的 FileVersion / ProductVersion 为 `0.6.0+6`。`python -m py_compile scripts/package-windows.py`、`git diff --check` 通过。引擎源码、模型和原有陪练预算没有替换；新增研究建议请求使用已有第三档预算。
+
+仍未完成：长辈实际试用、听感与音量验收、真实 Narrator / 全部 DPI / 干净系统验证、完整人工对弈、断电和进程强杀恢复、全部棋谱格式互通及 Android 真机验收。自由研究须手动保存，Demo 只有一个保存位置；多窗口保护拒绝覆盖，不合并。复盘没有引擎评分或失误诊断，13 题都是一步任务，没有多步课程或自动应手的完整残局闯关。原版 APK 本轮未重新运行或补做逆向。
+
 ## Windows 0.5.0 本地棋谱库
 
 分支 `feat/offline-game-library`，版本 `0.5.0+5`。本轮实现报告中的第一项本地多盘棋谱库；原创残局和声音辅助尚未实现。未推送、打标签或发布 Release，Android / SDK 工作仍暂停。

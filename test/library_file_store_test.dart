@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:anxin_xiangqi/application/game_library.dart';
+import 'package:anxin_xiangqi/application/study_notebook.dart';
+import 'package:anxin_xiangqi/domain/study.dart';
+import 'package:anxin_xiangqi/domain/rules.dart';
 import 'package:anxin_xiangqi/domain/game_snapshot.dart';
 import 'package:anxin_xiangqi/domain/xiangqi.dart';
 import 'package:anxin_xiangqi/infrastructure/game_store.dart';
@@ -55,6 +58,39 @@ void main() {
     expect(reopened.entries.single.id, 'one');
     expect(reopened.entries.single.title, '落盘后的棋局');
     expect(directory.listSync().whereType<Directory>(), isEmpty);
+  });
+
+  test('练习笔记真实落盘、备份、重开与外部修改拒绝覆盖', () async {
+    final first = StudyNotebook(LibraryFileStore.study(directory: directory));
+    final stale = StudyNotebook(LibraryFileStore.study(directory: directory));
+    addTearDown(first.dispose);
+    addTearDown(stale.dispose);
+    await first.initialize();
+    await stale.initialize();
+    final tree = importStudy('a3a4 a6a5', BasicRules());
+    await first.saveDraft(tree);
+    final original = await File('${directory.path}/games.json').readAsString();
+    await first.record('learn-rook', success: true);
+    expect(
+      await File('${directory.path}/games.previous.json').readAsString(),
+      original,
+    );
+    await expectLater(
+      stale.record('learn-rook', success: false),
+      throwsA(isA<GameStoreConflict>()),
+    );
+    expect(stale.writable, false);
+    expect(stale.notice, contains('另一个窗口'));
+    final reopened = StudyNotebook(
+      LibraryFileStore.study(directory: directory),
+    );
+    addTearDown(reopened.dispose);
+    await reopened.initialize();
+    expect(reopened.completed, {'learn-rook'});
+    expect(
+      StudyTree.fromJson(reopened.draft, BasicRules()).toJson(),
+      tree.toJson(),
+    );
   });
 
   test('主文件缺失时读上一份备份，后续成功保存恢复主文件', () async {
