@@ -2,6 +2,18 @@
 
 日期：2026-10-15（Asia/Shanghai）。
 
+## APK 功能差距报告
+
+本次为文档与静态研究，游戏版本保持 `0.4.0+4`。报告见 [功能对比与适老化建议](APK-FUNCTION-GAP-REPORT.md)，Word 版保存在忽略的本地 `artifacts/reports/`。
+
+- 全部 54 个 `.jsc` 解码成功，经过嵌入长度、GZIP CRC32 / ISIZE 与 UTF-8 校验；再次核对全部解码文件的大小和 SHA-256 与清单一致。主脚本由 Babel 语法解析并索引出 2866 个命名模块；没有执行目标脚本。
+- REA 整文件分析触及隔离工作进程堆限制，保留部分结果后改为四个问题范围。39 个模块、561901 字节均解析成功；训练与棋谱应用图为 complete，分析与联网应用图为 partial，四组语义关系均有 unknown。完整 10 条 Evidence 已导出到 `research/private/apk-comprehensive/rea-evidence-bundle.json`。
+- 68 个 bundle 中的 1190 个场景或预制体索引项已解析，处理同名不同类型及跨 bundle 重定向；独立回查 88887 个字面字段的 JSON 指针与原始成员值一致。此检查不证明运行可达、动态组件、默认值或自定义反序列化语义完整。
+- Word 共 15 页、3 张表、37 项功能比较。DOCX ZIP CRC、正文与 Markdown 的逐段逐单元格一致性检查通过。标题使用黑色 Title 样式，清除继承的装饰线；表格跨页重复表头。
+- 已调用技能的 `render_docx.py`，因本机没有 LibreOffice `soffice.exe` 失败。使用已安装 Microsoft Word 的 COM 导出 PDF，再用受管 Poppler 渲染 140 DPI 页面 PNG，逐页目视检查全部 15 页；最终措辞修改仅改变第 13 页，重新渲染并复查该页。PDF、PNG 与构建辅助脚本只保留在私有研究目录。Word COM 的 PowerShell 退出曾阻塞，已清理本次创建的隐藏实例；最终使用 VBScript 完成打开、导出和正常退出。
+- 最终 Word SHA-256：`8a0dde899d94734e9ffb18269580c5b3d58929cec4186f1e8e4f9ff2ae15b3b4`。数据与文档检查摘要保存在私有 `report-verification.json`。
+- 未安装运行原 APK、未访问其账号或服务器、未修改游戏代码，也未重跑 Flutter 测试、构建或打包。原版运行可用性、实际离线范围、当前活动开放状态、完整原生语义与手机体验仍未验证；适老化优先级为设计建议，未冒充长辈试用结论。
+
 ## Windows 0.4.0 本地开发版
 
 本轮分支 `feat/apk-informed-review`，版本 `0.4.0+4`；没有推送、创建新版本标签或发布 Release。Android / SDK 工作继续暂停。

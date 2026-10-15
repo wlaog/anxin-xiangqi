@@ -10,6 +10,8 @@
 
 本轮仍优先 Windows。分支 `feat/apk-informed-review`；此版本未推送、未发布 Release，下面的 0.3.0 仍是已发布下载版。APK 原始证据和提取结果不进 Git；新增研究及局限见 [第四轮 APK 研究](docs/APK-EXPERIENCE.md)，实际检查见 [验证记录](docs/VALIDATION.md)。文字棋谱可粘贴保存，未实现 XQF / PGN 等格式互通或棋谱导入。
 
+2026-10-15 补充 [APK 功能差距与适老化建议报告](docs/APK-FUNCTION-GAP-REPORT.md)，Word 版保存在本地 `artifacts/reports/天天象棋APK功能对比与适老化建议.docx`。本轮只研究和写报告，已解码全部脚本并核对主要功能族；未安装运行 APK，也未修改游戏代码。
+
 ## 当前 Windows 版：0.3.0
 
 当前优先完善 Windows，Android / SDK 工作暂停。新增可保存的大字设置、可选落子确认、减少动效、放大棋盘中继续对弈及桌面侧栏独立滚动。放大视图棋格至少 60 逻辑像素，可拖动滚动条查看整盘；文字放大不会挤压棋子字形。
