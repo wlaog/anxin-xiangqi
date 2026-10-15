@@ -177,6 +177,7 @@ class GameController extends ChangeNotifier {
       if (move == null || !legalMoves.contains(move)) {
         throw StateError('电脑未返回有效走法');
       }
+      if (notice == '电脑暂时无法落子。可以点“继续思考”重试，或悔棋。') notice = null;
       _append(move);
     } catch (_) {
       if (_disposed || ticket != _generation) return;
@@ -235,6 +236,7 @@ class GameController extends ChangeNotifier {
           : await engine.choose(position, level);
       if (_disposed || ticket != _generation) return null;
       if (move == null || !legalMoves.contains(move)) throw StateError('无有效提示');
+      if (notice == '暂时没有想好提示，请稍后重试。') notice = null;
       return move;
     } catch (_) {
       if (!_disposed && ticket == _generation) notice = '暂时没有想好提示，请稍后重试。';

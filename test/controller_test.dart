@@ -79,6 +79,7 @@ void main() {
     ai.fail = false;
     await recovering.retryComputer();
     expect(recovering.ply, 2);
+    expect(recovering.notice, isNull);
     final key = recovering.position.key;
     final hint = await recovering.hint();
     expect(recovering.legalMoves, contains(hint));

@@ -27,7 +27,10 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        ndk {
+            abiFilters.clear()
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
         externalNativeBuild { cmake { arguments += "-DANDROID_STL=c++_shared" } }
     }
     externalNativeBuild {
