@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import zipfile
 import json
-import subprocess
+from release_sources import create_sources
 
 root = Path(__file__).resolve().parent.parent
 release = root / 'build/windows/x64/runner/Release'
@@ -20,22 +20,7 @@ if not network.is_file() or hashlib.sha256(network.read_bytes()).hexdigest() != 
 version = re.search(r'^version:\s*([^+\s]+)', (root / 'pubspec.yaml').read_text(encoding='utf-8'), re.M)[1]
 destination = root / 'artifacts' / f'anxin-xiangqi-windows-{version}.zip'
 destination.parent.mkdir(parents=True, exist_ok=True)
-git = lambda *args: subprocess.check_output(['git', '-C', str(root), *args])
-if git('status', '--porcelain').strip():
-    raise SystemExit('Commit reviewed source changes before creating a release.')
-source_bundle = destination.parent / f'anxin-xiangqi-source-{version}.zip'
-sources = git('ls-files', '--recurse-submodules', '-z').decode('utf-8').split('\0')
-with zipfile.ZipFile(source_bundle, 'w', zipfile.ZIP_DEFLATED) as archive:
-    for name in sorted(set(sources) - {''}):
-        path = root / name
-        if path.is_file():
-            archive.write(path, f'anxin-xiangqi/{name}')
-    archive.write(network, 'anxin-xiangqi/assets/engine/pikafish.nnue')
-    archive.writestr('anxin-xiangqi/SOURCE-INFO.json', json.dumps({
-        'application_commit': git('rev-parse', 'HEAD').decode().strip(),
-        'engine_commit': manifest['engine_commit'],
-        'network_sha256': manifest['network_sha256'],
-    }, indent=2))
+source_bundle = create_sources(root, version)
 instructions = f'''安心象棋
 
 把整个压缩包解压到一个文件夹，双击 anxin_xiangqi.exe 打开。

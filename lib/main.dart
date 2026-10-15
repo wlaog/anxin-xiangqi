@@ -151,7 +151,10 @@ class _ChessPageState extends State<ChessPage> {
       return;
     }
     if (game.position.board[index]?.side == game.playerSide) {
-      setState(() => selected = selected == index ? null : index);
+      setState(() {
+        selected = selected == index ? null : index;
+        hintMove = null;
+      });
       return;
     }
     if (selected == null) return;

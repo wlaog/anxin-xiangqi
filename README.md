@@ -10,7 +10,7 @@
 - 执红/执黑、成对悔棋、翻转棋盘、逐步回看、自动续局；兼容第一版存档，AI 失败可重试。
 - 固定引擎 Git 子模块和模型 SHA-256，项目与相邻 REA 工具独立。组合应用按 GPL-3.0-or-later 发布。
 
-本地 Windows 便携包目标为 `artifacts/anxin-xiangqi-windows-0.2.0.zip`，完整解压后运行 `anxin_xiangqi.exe`。实际构建、检查和 Android 状态以 [验证记录](docs/VALIDATION.md) 为准。预览在 `artifacts/previews/`，属于 Flutter 测试渲染，不能替代设备实测。
+本地试用：[Windows 便携包](artifacts/anxin-xiangqi-windows-0.2.0.zip)、[Android APK](artifacts/anxin-xiangqi-android-0.2.0.apk)、[Android 含源码发行包](artifacts/anxin-xiangqi-android-0.2.0.zip)。Windows 完整解压后运行 `anxin_xiangqi.exe`。安卓已构建并通过包内容/签名检查，尚未完成设备安装对弈验证。详见 [验证记录](docs/VALIDATION.md)。预览在 `artifacts/previews/`，属于 Flutter 测试渲染。
 
 原版 APK 的静态研究、网页运行截图、公开前端模块的证据与未知项见 [第一轮研究](docs/RESEARCH.md) 和 [第二轮研究](docs/DEMO2-RESEARCH.md)。REA 是反编译/分析工具集，不是游戏引擎；游戏运行不需要 REA。APK 不能独自证明安装后全部资源和线上功能，网页目前只实测到登录界面。
 
@@ -29,11 +29,12 @@ flutter run -d windows --no-pub
 flutter build windows --release --no-pub
 # 提交核对过的源码后打包，包内包含对应源码和同一模型
 python scripts/package-windows.py
+python scripts/package-android.py
 ```
 
 引擎模型在开发准备阶段下载并校验，随应用打包，运行时不联网。详细预算、裁决口径、平台要求与失败处理见 [ENGINE.md](docs/ENGINE.md)。首次运行的模型加载开销不包括在单步搜索预算中，低端手机仍需校准。
 
-Android 工程共用 Dart/原生源码，支持 arm64-v8a 和 x86_64，最低 Android 10。需完整 Android SDK 36、NDK 28.2.13676358、CMake 3.22.1 与 JDK 21；准备好后 `flutter build apk --release --no-pub`。当前 release 配置使用开发签名，正式发行前应配置自有签名。
+Android 工程共用 Dart/原生源码，支持 arm64-v8a 和 x86_64，最低 Android 10。需完整 Android SDK 36、NDK 28.2.13676358、CMake 3.22.1 与 JDK 21；准备好后 `flutter build apk --release --target-platform android-arm64,android-x64 --no-pub`。当前 release 配置使用开发签名，正式发行前应配置自有签名。Windows 跨盘 Pub 缓存触发的 Kotlin 路径错误通过项目内 `kotlin.incremental=false` 处理。
 
 Windows 如遇插件符号链接权限问题，在依赖解析完成后运行 `.\scripts\prepare-windows-plugins.ps1`，再用 `--no-pub` 构建。脚本只创建项目生成目录中的目录联接，不修改系统设置。本工作区的 `..\.toolchains\flutter\bin\flutter.bat` 是临时工具路径，不是项目依赖。
 

@@ -10,3 +10,4 @@
 - Pikafish 的公开模型训练数据归属说明见固定版本上游 README：Pika Xiangqi Zero 数据采用 [ODbL](https://opendatacommons.org/licenses/odbl/)。模型来自上游 Networks 仓库，不是本项目自行训练。来源与构建限制见 `docs/ENGINE.md`。
 - 原创木纹由 imagegen 生成，提示词与用途见 `assets/art/README.md`。系统字体不随包分发。
 - MinGW-w64/GCC 的编译器运行库静态进入原生 DLL，其 GPL Runtime Library Exception / MinGW 许可材料随源码及便携包保留于 `licenses/mingw/`。Flutter 的 Windows 外壳仍由 Visual Studio 构建。
+- Android 原生库通过 NDK r28c 编译，APK 随附 libc++_shared；NDK 与 LLVM 的许可/异常条款原文保留于 `licenses/android-ndk/` 并进入发行包。
