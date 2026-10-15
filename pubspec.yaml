@@ -1,7 +1,7 @@
 name: anxin_xiangqi
 description: 面向长辈的开源离线象棋，支持 Windows 和 Android。
 publish_to: none
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ^3.13.5
@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences: ^2.5.3
+  ffi: ^2.2.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -18,3 +20,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/art/elm-wood.png
+    - assets/engine/pikafish.nnue

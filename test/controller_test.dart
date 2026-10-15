@@ -35,7 +35,57 @@ class DelayedAi implements AiEngine {
   }
 }
 
+class RecoverableAi implements AiEngine {
+  bool fail = true;
+  @override
+  Future<Move?> choose(Position p, int level) async {
+    if (fail) throw StateError('temporary failure');
+    return p.legalMoves().first;
+  }
+}
+
 void main() {
+  test('执黑自动先走红棋、悔棋边界与二版存档恢复', () async {
+    final store = MemoryStore();
+    final black = GameController(store: store, engine: ImmediateAi());
+    await black.initialize();
+    await black.newGame(side: Side.black);
+    expect(black.position.turn, Side.black);
+    expect(black.ply, 1);
+    expect(black.canUndo, false);
+    await black.undo();
+    expect(black.ply, 1);
+    await black.play(black.legalMoves.first);
+    expect(black.ply, 3);
+    await black.undo();
+    expect(black.ply, 1);
+    await black.setLevel(5);
+    final restored = GameController(store: store, engine: ImmediateAi());
+    await restored.initialize();
+    expect(restored.playerSide, Side.black);
+    expect(restored.level, 5);
+    expect(restored.ply, 1);
+    black.dispose();
+    restored.dispose();
+  });
+  test('AI 失败保留原棋盘，重试成功；提示不落子', () async {
+    final ai = RecoverableAi();
+    final recovering = GameController(store: MemoryStore(), engine: ai);
+    await recovering.initialize();
+    await recovering.play(const Move(54, 45));
+    expect(recovering.ply, 1);
+    expect(recovering.notice, contains('重试'));
+    expect(recovering.busy, false);
+    ai.fail = false;
+    await recovering.retryComputer();
+    expect(recovering.ply, 2);
+    final key = recovering.position.key;
+    final hint = await recovering.hint();
+    expect(recovering.legalMoves, contains(hint));
+    expect(recovering.position.key, key);
+    expect(recovering.ply, 2);
+    recovering.dispose();
+  });
   test('一轮对弈、成对悔棋与存档重放', () async {
     final store = MemoryStore();
     final game = GameController(store: store, engine: ImmediateAi());
@@ -99,7 +149,7 @@ void main() {
     await game.play(const Move(54, 45));
     expect(store.data, 'bad data');
     await game.newGame();
-    expect(jsonDecode(store.data!)['version'], 1);
+    expect(jsonDecode(store.data!)['version'], 2);
     game.dispose();
   });
   test('保存失败不阻止对弈，非法存档走法不被采用', () async {

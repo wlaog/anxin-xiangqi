@@ -44,6 +44,13 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await tester.runAsync(
+        () => precacheImage(
+          const AssetImage('assets/art/elm-wood.png'),
+          key.currentContext!,
+        ),
+      );
+      await tester.pumpAndSettle();
       final boundary =
           key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
       await tester.runAsync(() async {

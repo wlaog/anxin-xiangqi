@@ -135,9 +135,9 @@ void main() {
     expect(outcome([mate]), Outcome.redWins);
     expect(LocalSearch().choose(mate), isNull);
   });
-  test('休闲重复和棋与无吃子计数', () {
+  test('基础规则不再仅凭重复棋盘判和，无吃子计数', () {
     final p = Position.initial();
-    expect(outcome([p, p, p]), Outcome.repetitionDraw);
+    expect(outcome([p, p, p]), Outcome.playing);
     expect(outcome([Position(p.board, quietPly: 120)]), Outcome.quietDraw);
     final capture = setup({
       4: bk,

@@ -4,24 +4,52 @@ import gzip
 from pathlib import Path
 import re
 import zipfile
+import json
+import subprocess
 
 root = Path(__file__).resolve().parent.parent
 release = root / 'build/windows/x64/runner/Release'
 if not (release / 'anxin_xiangqi.exe').is_file():
     raise SystemExit('Run flutter build windows --release first.')
+if not (release / 'anxin_pikafish.dll').is_file():
+    raise SystemExit('The native engine is missing from the bundle.')
+manifest = json.loads((root / 'assets/engine/manifest.json').read_text())
+network = release / 'data/flutter_assets/assets/engine/pikafish.nnue'
+if not network.is_file() or hashlib.sha256(network.read_bytes()).hexdigest() != manifest['network_sha256']:
+    raise SystemExit('The bundled NNUE does not match the pinned manifest.')
 version = re.search(r'^version:\s*([^+\s]+)', (root / 'pubspec.yaml').read_text(encoding='utf-8'), re.M)[1]
 destination = root / 'artifacts' / f'anxin-xiangqi-windows-{version}.zip'
 destination.parent.mkdir(parents=True, exist_ok=True)
+git = lambda *args: subprocess.check_output(['git', '-C', str(root), *args])
+if git('status', '--porcelain').strip():
+    raise SystemExit('Commit reviewed source changes before creating a release.')
+source_bundle = destination.parent / f'anxin-xiangqi-source-{version}.zip'
+sources = git('ls-files', '--recurse-submodules', '-z').decode('utf-8').split('\0')
+with zipfile.ZipFile(source_bundle, 'w', zipfile.ZIP_DEFLATED) as archive:
+    for name in sorted(set(sources) - {''}):
+        path = root / name
+        if path.is_file():
+            archive.write(path, f'anxin-xiangqi/{name}')
+    archive.write(network, 'anxin-xiangqi/assets/engine/pikafish.nnue')
+    archive.writestr('anxin-xiangqi/SOURCE-INFO.json', json.dumps({
+        'application_commit': git('rev-parse', 'HEAD').decode().strip(),
+        'engine_commit': manifest['engine_commit'],
+        'network_sha256': manifest['network_sha256'],
+    }, indent=2))
 instructions = f'''安心象棋
 
 把整个压缩包解压到一个文件夹，双击 anxin_xiangqi.exe 打开。
 请保留同一文件夹中的其他文件和 data 文件夹。
 
-您执红先走。点自己的棋子，再点有圆点的位置。
+默认执红先走，新开局可选择执黑。点自己的棋子，再点有圆点的位置。
 “悔一步”会回到您上次落子前。“重新开始”会请您确认。
 不需要登录，也不需要联网。程序自动保存，重新打开可继续。
 
-这是 {version} 离线原型，陪练仅供休闲，尚未完成长辈实用性验证。
+这是 {version} 离线试用版。五档本地 Pikafish 陪练，可提示、翻转和回看。
+长将长捉要求违规方变着。尚未完成长辈实用性与竞赛规则全量验证。
+
+程序按 GPL-3.0-or-later 开源，对应源码及模型见包内 {source_bundle.name}。
+再次分发时请一并提供许可、通知和对应源码；构建说明在源码 README/docs/ENGINE.md。
 '''
 with zipfile.ZipFile(destination, 'w', zipfile.ZIP_DEFLATED) as archive:
     for source in sorted(release.rglob('*')):
@@ -30,6 +58,12 @@ with zipfile.ZipFile(destination, 'w', zipfile.ZIP_DEFLATED) as archive:
                 raise ValueError(f'Release entry points outside build directory: {source}')
             archive.write(source, source.relative_to(release).as_posix())
     archive.write(root / 'LICENSE', 'LICENSE.txt')
+    archive.write(source_bundle, source_bundle.name)
+    archive.write(root / 'THIRD_PARTY_NOTICES.md', 'PROJECT_THIRD_PARTY_NOTICES.md')
+    archive.write(root / 'assets/engine/manifest.json', 'ENGINE-MANIFEST.json')
+    for license_file in sorted((root / 'licenses').rglob('*')):
+        if license_file.is_file():
+            archive.write(license_file, license_file.relative_to(root).as_posix())
     archive.writestr('使用说明.txt', instructions.encode('utf-8'))
     notices = release / 'data/flutter_assets/NOTICES.Z'
     if notices.is_file():

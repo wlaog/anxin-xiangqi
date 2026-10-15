@@ -211,9 +211,8 @@ Outcome outcome(List<Position> history) {
   if (current.legalMoves().isEmpty) {
     return current.turn == Side.red ? Outcome.blackWins : Outcome.redWins;
   }
-  if (history.where((p) => p.key == current.key).length >= 3) {
-    return Outcome.repetitionDraw;
-  }
+  // Repetition needs move history and a perpetual-check/chase referee.
+  // Production uses RuleBook; counting identical boards alone is incorrect.
   if (current.quietPly >= 120) return Outcome.quietDraw;
   return Outcome.playing;
 }

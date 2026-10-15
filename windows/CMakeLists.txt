@@ -72,6 +72,12 @@ endif()
 set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
 set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 
+set(ANXIN_ENGINE "${CMAKE_CURRENT_SOURCE_DIR}/../native/bin/windows/anxin_pikafish.dll")
+if(NOT EXISTS "${ANXIN_ENGINE}")
+  message(FATAL_ERROR "Build native engine first: scripts/build-native.ps1")
+endif()
+install(FILES "${ANXIN_ENGINE}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}" COMPONENT Runtime)
+
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 

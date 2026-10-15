@@ -1,0 +1,9 @@
+{
+  "engine_repository": "https://github.com/official-pikafish/Pikafish",
+  "engine_commit": "ce9fb8391b32fa8aa3beefaa6ecdd1c1d438b185",
+  "network_url": "https://github.com/official-pikafish/Networks/releases/download/master-net/pikafish.nnue",
+  "network_sha256": "bf3982711150bf2f8b49e99cd93421320f6ca914cfcf131dad5eb7f2402573ac",
+  "network_bytes": 50241100,
+  "network_license_reference": "https://github.com/official-pikafish/Pikafish/blob/ce9fb8391b32fa8aa3beefaa6ecdd1c1d438b185/README.md#terms-of-use",
+  "obtained_utc_date": "2026-10-15"
+}
