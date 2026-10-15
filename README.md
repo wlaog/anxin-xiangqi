@@ -4,13 +4,13 @@
 
 源码仓库：[wlaog/anxin-xiangqi](https://github.com/wlaog/anxin-xiangqi)，主分支 `main`。下载与更新说明见 [GitHub Releases](https://github.com/wlaog/anxin-xiangqi/releases)。
 
-## 本轮本地开发：0.6.0 Demo
+## Windows 预发布：0.6.0 Demo
 
 报告建议的八项功能已有可运行的离线演示：3 个原创一步残局、3 个战术练习、七类棋子的互动教程、练习进度与错题再练，以及摆棋、保留分支的双边试走、简洁复盘、有限格式的棋谱导入导出。Windows 增加原创合成提示音和可选本机中文语音，默认关闭，可在“使用设置”里试听。
 
 入口是棋桌的 **练习与研究**，实盘保留。研究须主动保存，演示版保存一份完整分支；替换前可取消。棋谱支持本项目完整研究 JSON、局面文字及 ICCS 坐标着法子集；不宣称完整 PGN / XQF 支持。复盘说明实际走棋、吃子和将军，尚无胜率或失误评分。详细范围和试用步骤见 [0.6 演示说明](docs/DEMO-0.6.md)。
 
-分支 `feat/offline-learning-demo`，版本 `0.6.0+6`，本地开发，未推送或发布。Windows 便携包位于 [0.6.0 演示包](artifacts/anxin-xiangqi-windows-0.6.0.zip)，附完整对应源码和同一模型。这是八项建议的 Demo，题库规模、完整格式兼容和实机适老化验收仍待完善；实际检查见 [验证记录](docs/VALIDATION.md)。
+版本 `0.6.0+6`，下载 [v0.6.0 Demo Release](https://github.com/wlaog/anxin-xiangqi/releases/tag/v0.6.0)：[Windows 演示包](https://github.com/wlaog/anxin-xiangqi/releases/download/v0.6.0/anxin-xiangqi-windows-0.6.0.zip)、[完整对应源码](https://github.com/wlaog/anxin-xiangqi/releases/download/v0.6.0/anxin-xiangqi-source-0.6.0.zip) 和 [校验文件](https://github.com/wlaog/anxin-xiangqi/releases/download/v0.6.0/SHA256SUMS.txt)。完整解压后运行，包内附同一版本源码和模型。标签对应包内记录的源码提交 `b5d7e3f`，主分支另含后续发版文档。这是八项建议的 Demo，题库规模、完整格式兼容和实机适老化验收仍待完善；实际检查见 [验证记录](docs/VALIDATION.md)。
 
 ## 上一轮本地开发：0.5.0
 
@@ -28,7 +28,7 @@
 
 2026-10-15 补充 [APK 功能差距与适老化建议报告](docs/APK-FUNCTION-GAP-REPORT.md)，Word 版保存在本地 `artifacts/reports/天天象棋APK功能对比与适老化建议.docx`。该次只研究和写报告，已解码全部脚本并核对主要功能族；未安装运行 APK，也未修改游戏代码。报告以 0.4 为历史对比基线，不代表后续功能一直缺失。
 
-## 当前 Windows 版：0.3.0
+## 上一次常规发布：Windows 0.3.0
 
 当前优先完善 Windows，Android / SDK 工作暂停。新增可保存的大字设置、可选落子确认、减少动效、放大棋盘中继续对弈及桌面侧栏独立滚动。放大视图棋格至少 60 逻辑像素，可拖动滚动条查看整盘；文字放大不会挤压棋子字形。
 
