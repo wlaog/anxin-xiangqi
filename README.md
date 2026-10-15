@@ -2,7 +2,15 @@
 
 给长辈的一张清楚、安静、随时能接着下的棋桌。开源、离线、人机对弈，目标平台 Windows 与 Android。
 
-## 第二版进度
+## 当前 Windows 版：0.3.0
+
+当前优先完善 Windows，Android / SDK 工作暂停。新增可保存的大字设置、可选落子确认、减少动效、放大棋盘中继续对弈及桌面侧栏独立滚动。放大视图棋格至少 60 逻辑像素，可拖动滚动条查看整盘；文字放大不会挤压棋子字形。
+
+本地试用：[Windows 0.3.0 便携包](artifacts/anxin-xiangqi-windows-0.3.0.zip)。完整解压后运行 `anxin_xiangqi.exe`，不要直接在压缩包里运行。右侧工具可单独滚动，“使用设置”中调整文字、确认和动效，“放大棋盘”中可继续下棋。Windows 包附同版本完整对应源码和 NNUE。
+
+历史安卓产物仍为 [0.2.0 APK](artifacts/anxin-xiangqi-android-0.2.0.apk) 与 [含源码发行包](artifacts/anxin-xiangqi-android-0.2.0.zip)，尚未通过设备安装对弈验收，不代表 0.3.0 安卓已交付。
+
+## 已有离线能力
 
 - 原创榆木纹棋盘、木质棋子、大字、明确选子与落点反馈，无账号、广告、付费或遥测。
 - 公开 Pikafish + NNUE 本地搜索，五档预算、开局候选变化；提示不代走。
@@ -10,9 +18,9 @@
 - 执红/执黑、成对悔棋、翻转棋盘、逐步回看、自动续局；兼容第一版存档，AI 失败可重试。
 - 固定引擎 Git 子模块和模型 SHA-256，项目与相邻 REA 工具独立。组合应用按 GPL-3.0-or-later 发布。
 
-本地试用：[Windows 便携包](artifacts/anxin-xiangqi-windows-0.2.0.zip)、[Android APK](artifacts/anxin-xiangqi-android-0.2.0.apk)、[Android 含源码发行包](artifacts/anxin-xiangqi-android-0.2.0.zip)。Windows 完整解压后运行 `anxin_xiangqi.exe`。安卓已构建并通过包内容/签名检查，尚未完成设备安装对弈验证。详见 [验证记录](docs/VALIDATION.md)。预览在 `artifacts/previews/`，属于 Flutter 测试渲染。
+实际检查与限制见 [验证记录](docs/VALIDATION.md)。`artifacts/previews/` 中的棋桌、设置、确认和放大视图是 Flutter 测试渲染，未冒充 Windows 人工对弈截图。
 
-原版 APK 的静态研究、网页运行截图、公开前端模块的证据与未知项见 [第一轮研究](docs/RESEARCH.md) 和 [第二轮研究](docs/DEMO2-RESEARCH.md)。REA 是反编译/分析工具集，不是游戏引擎；游戏运行不需要 REA。APK 不能独自证明安装后全部资源和线上功能，网页目前只实测到登录界面。
+原版 APK 静态研究见 [第一轮研究](docs/RESEARCH.md)，公开前端模块见 [第二轮研究](docs/DEMO2-RESEARCH.md)，扫码登录后的人机开局、选子应手、局内设置和退出确认见 [第三轮实测](docs/WINDOWS-RESEARCH.md)。REA 是反编译/分析工具集，不是游戏引擎；游戏运行不需要 REA。APK 不能独自证明安装后全部资源和线上功能；网页也不能替代 Android 安装后观察。
 
 ## 构建与运行
 
@@ -44,7 +52,7 @@ Windows 如遇插件符号链接权限问题，在依赖解析完成后运行 `.
 
 保留一个清楚的棋桌，不照搬线上应用的账号、排行、商城和社交。提供大触控文字按钮、无限时、提示、悔棋与续局；小屏九列棋盘仍需实机适老化测试。当前难度名称未做 Elo/腾讯段位映射，规则采用固定 Pikafish 与本项目变着策略，未宣称与腾讯或全部竞赛条款完全一致。
 
-后续主要任务：安卓设备完整验证、长辈试用、入门档校准、复杂长捉题库、残局练习、棋谱导出、语音和可选落子确认。联机另立需求。
+后续优先 Windows 长辈试用、入门档校准、复杂长捉题库、原创残局练习、棋谱导出、键盘与语音辅助，以及原版更多交互补证据。安卓设备验证待恢复该方向后继续；联机另立需求。
 
 设计及开发文档：[需求](docs/PRODUCT.md)、[架构](docs/ARCHITECTURE.md)、[任务清单](docs/ROADMAP.md)、[协作约定](AGENTS.md)。
 

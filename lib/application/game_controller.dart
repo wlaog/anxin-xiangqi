@@ -6,6 +6,7 @@ import '../domain/xiangqi.dart';
 import '../domain/ai.dart';
 import '../domain/rules.dart';
 import '../infrastructure/game_store.dart';
+import 'user_preferences.dart';
 
 Move? _search((Position, int) request) => LocalSearch(
   maxDepth: request.$2,
@@ -42,6 +43,7 @@ class GameController extends ChangeNotifier {
   List<Move> get moves => List.unmodifiable(_moves);
   List<Move> get forbiddenMoves => _verdict.forbidden;
   int level = 2;
+  UserPreferences preferences = const UserPreferences();
   bool ready = false, busy = false;
   bool _disposed = false, _allowSave = true;
   int _generation = 0;
@@ -111,6 +113,7 @@ class GameController extends ChangeNotifier {
           ..addAll(moves);
         level = data['level'];
         playerSide = data['side'] == 'black' ? Side.black : Side.red;
+        preferences = UserPreferences.fromJson(data['preferences']);
         notice = moves.isEmpty ? null : '已接着上次的棋局';
       }
     } catch (_) {
@@ -256,12 +259,20 @@ class GameController extends ChangeNotifier {
     await _persist();
   }
 
+  Future<void> setPreferences(UserPreferences value) async {
+    if (!ready || _disposed) return;
+    preferences = UserPreferences.fromJson(value.toJson());
+    _notify();
+    await _persist();
+  }
+
   Future<void> _persist() {
     if (!ready || !_allowSave) return Future.value();
     final snapshot = jsonEncode({
       'version': 2,
       'level': level,
       'side': playerSide.name,
+      'preferences': preferences.toJson(),
       'moves': _moves.map((m) => m.toJson()).toList(),
     });
     _writes = _writes.then((_) async {

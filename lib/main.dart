@@ -44,63 +44,93 @@ const paper = Color(0xFFF1E8D8);
 const red = Color(0xFF9D2927);
 
 class AnxinApp extends StatelessWidget {
-  const AnxinApp({super.key, this.controller});
-  final GameController? controller;
+  const AnxinApp({super.key, required this.controller});
+  final GameController controller;
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: '安心象棋',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: ink, surface: paper),
-      scaffoldBackgroundColor: paper,
-      fontFamily: 'Microsoft YaHei',
-      fontFamilyFallback: const [
-        'Microsoft YaHei',
-        'Noto Sans CJK SC',
-        'sans-serif',
-      ],
-      textTheme: const TextTheme(
-        bodyMedium: TextStyle(fontSize: 22, color: ink),
-        bodyLarge: TextStyle(fontSize: 24, color: ink),
-        titleLarge: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-          color: ink,
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(56, 60),
-          textStyle: const TextStyle(
-            fontFamily: 'Microsoft YaHei',
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: controller,
+    builder: (context, _) => MaterialApp(
+      title: '安心象棋',
+      debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        final media = MediaQuery.of(context),
+            preferences = controller.preferences;
+        return MediaQuery(
+          data: media.copyWith(
+            textScaler: _EnlargedTextScaler(
+              media.textScaler,
+              preferences.textScale,
+            ),
+            disableAnimations:
+                media.disableAnimations || preferences.reduceMotion,
           ),
-          foregroundColor: ink,
-          side: const BorderSide(color: ink),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          minimumSize: const Size(56, 60),
-          textStyle: const TextStyle(
-            fontFamily: 'Microsoft YaHei',
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
-          ),
-          backgroundColor: red,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+          child: child!,
+        );
+      },
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: ink, surface: paper),
+        scaffoldBackgroundColor: paper,
+        fontFamily: 'Microsoft YaHei',
+        fontFamilyFallback: const [
+          'Microsoft YaHei',
+          'Noto Sans CJK SC',
+          'sans-serif',
+        ],
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(fontSize: 22, color: ink),
+          bodyLarge: TextStyle(fontSize: 24, color: ink),
+          titleMedium: TextStyle(fontSize: 22, color: ink),
+          bodySmall: TextStyle(fontSize: 22, color: ink),
+          titleLarge: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: ink,
           ),
         ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(56, 60),
+            textStyle: const TextStyle(
+              fontFamily: 'Microsoft YaHei',
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+            ),
+            foregroundColor: ink,
+            side: const BorderSide(color: ink),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(56, 60),
+            textStyle: const TextStyle(
+              fontFamily: 'Microsoft YaHei',
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+            ),
+            backgroundColor: red,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
       ),
+      home: ChessPage(controller: controller),
     ),
-    home: ChessPage(controller: controller),
   );
+}
+
+class _EnlargedTextScaler extends TextScaler {
+  const _EnlargedTextScaler(this.system, this.factor);
+  final TextScaler system;
+  final double factor;
+  @override
+  double scale(double fontSize) => system.scale(fontSize) * factor;
+  @override
+  double get textScaleFactor => scale(14) / 14;
 }
 
 class ChessPage extends StatefulWidget {
@@ -113,10 +143,11 @@ class ChessPage extends StatefulWidget {
 class _ChessPageState extends State<ChessPage> {
   late final GameController game;
   int? selected;
-  bool showTargets = true;
+  bool get showTargets => game.preferences.showTargets;
   bool flipped = false;
   Move? hintMove;
   int previousPly = -1;
+  final controlsScroll = ScrollController();
   @override
   void initState() {
     super.initState();
@@ -139,11 +170,12 @@ class _ChessPageState extends State<ChessPage> {
   @override
   void dispose() {
     game.removeListener(_changed);
+    controlsScroll.dispose();
     if (widget.controller == null) game.dispose();
     super.dispose();
   }
 
-  void _tap(int index) {
+  Future<void> _tap(int index) async {
     if (!game.ready ||
         game.busy ||
         game.position.turn != game.playerSide ||
@@ -160,6 +192,54 @@ class _ChessPageState extends State<ChessPage> {
     if (selected == null) return;
     final move = Move(selected!, index);
     if (game.legalMoves.contains(move)) {
+      if (game.preferences.confirmMoves) {
+        final before = game.position;
+        final moving = before.board[move.from]!,
+            captured = before.board[move.to];
+        final yes = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('这步确定走吗？'),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: 360,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '这是落子后的样子。框中的${moving.label}是您准备走的棋子。'
+                      '${captured == null ? '' : '\n这步会吃掉对方的${captured.label}。'}',
+                    ),
+                    const SizedBox(height: 12),
+                    ChessBoard(
+                      position: before.applyUnchecked(move),
+                      selected: move.to,
+                      targets: const {},
+                      lastMove: move,
+                      flipped: flipped,
+                      onTap: (_) {},
+                      enabled: false,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              OutlinedButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('再想想'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('确定落子'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted || yes != true || !identical(before, game.position)) {
+          return;
+        }
+      }
       setState(() {
         selected = null;
         hintMove = null;
@@ -182,6 +262,64 @@ class _ChessPageState extends State<ChessPage> {
         );
     }
   }
+
+  void _settings() => showDialog<void>(
+    context: context,
+    builder: (context) => ListenableBuilder(
+      listenable: game,
+      builder: (context, _) => AlertDialog(
+        title: const Text('使用设置'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '文字大小',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              RadioGroup<double>(
+                groupValue: game.preferences.textScale,
+                onChanged: (v) => game.setPreferences(
+                  game.preferences.copyWith(textScale: v),
+                ),
+                child: const Column(
+                  children: [
+                    RadioListTile<double>(value: 1, title: Text('标准大字')),
+                    RadioListTile<double>(value: 1.2, title: Text('再大一些')),
+                    RadioListTile<double>(value: 1.4, title: Text('更大文字')),
+                  ],
+                ),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('落子前再确认'),
+                subtitle: const Text('选好位置后，确认才落子'),
+                value: game.preferences.confirmMoves,
+                onChanged: (v) => game.setPreferences(
+                  game.preferences.copyWith(confirmMoves: v),
+                ),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('减少动效'),
+                value: game.preferences.reduceMotion,
+                onChanged: (v) => game.setPreferences(
+                  game.preferences.copyWith(reduceMotion: v),
+                ),
+              ),
+              const Text('设置会自动保存。文字会继续跟随系统放大。'),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('设置好了'),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Future<void> _restart() async {
     var side = game.playerSide;
@@ -264,6 +402,15 @@ class _ChessPageState extends State<ChessPage> {
       });
     }
   }
+
+  void _largeBoard() => showDialog<void>(
+    context: context,
+    builder: (context) => _LargeBoard(
+      game: game,
+      onTap: _tap,
+      boardBuilder: (onTap) => _board(onTap: onTap),
+    ),
+  );
 
   void _review() {
     final positions = game.history, moves = game.moves;
@@ -432,7 +579,8 @@ class _ChessPageState extends State<ChessPage> {
         contentPadding: EdgeInsets.zero,
         title: const Text('显示可走位置', style: TextStyle(fontSize: 22)),
         value: showTargets,
-        onChanged: (v) => setState(() => showTargets = v!),
+        onChanged: (v) =>
+            game.setPreferences(game.preferences.copyWith(showTargets: v)),
         controlAffinity: ListTileControlAffinity.leading,
       ),
       const SizedBox(height: 12),
@@ -454,19 +602,22 @@ class _ChessPageState extends State<ChessPage> {
         ],
       ),
       const SizedBox(height: 12),
+      OutlinedButton(onPressed: _largeBoard, child: const Text('放大棋盘')),
+      const SizedBox(height: 12),
+      OutlinedButton(onPressed: _settings, child: const Text('使用设置')),
+      const SizedBox(height: 12),
       OutlinedButton(onPressed: _help, child: const Text('怎么下棋')),
     ],
   );
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _board({ValueChanged<int>? onTap}) {
     final targets = selected == null
         ? <int>{}
         : game.legalMoves
               .where((m) => m.from == selected)
               .map((m) => m.to)
               .toSet();
-    final board = ChessBoard(
+    return ChessBoard(
       position: game.position,
       selected: selected,
       targets: hintMove != null
@@ -476,13 +627,18 @@ class _ChessPageState extends State<ChessPage> {
           : {},
       lastMove: hintMove ?? game.lastMove,
       flipped: flipped,
-      onTap: _tap,
+      onTap: onTap ?? _tap,
       enabled:
           game.ready &&
           !game.busy &&
           game.position.turn == game.playerSide &&
           game.result == Outcome.playing,
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final board = _board();
     return Scaffold(
       body: SafeArea(
         child: LayoutBuilder(
@@ -527,14 +683,30 @@ class _ChessPageState extends State<ChessPage> {
                                 child: SizedBox(
                                   width: math.min(
                                     660,
-                                    math.max(450, box.maxHeight - 110) * 0.9,
+                                    math.max(360, box.maxHeight - 170) * 0.9,
                                   ),
                                   child: board,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 32),
-                            SizedBox(width: 320, child: _controls()),
+                            SizedBox(
+                              width: 320,
+                              height: math.max(200, box.maxHeight - 170),
+                              child: ScrollConfiguration(
+                                behavior: ScrollConfiguration.of(context)
+                                    .copyWith(scrollbars: false),
+                                child: Scrollbar(
+                                  controller: controlsScroll,
+                                  thumbVisibility: true,
+                                  child: SingleChildScrollView(
+                                    controller: controlsScroll,
+                                    padding: const EdgeInsets.only(right: 20),
+                                    child: _controls(),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         )
                       else ...[
@@ -573,6 +745,135 @@ class _ChessPageState extends State<ChessPage> {
       ),
     );
   }
+}
+
+class _LargeBoard extends StatefulWidget {
+  const _LargeBoard({
+    required this.game,
+    required this.boardBuilder,
+    required this.onTap,
+  });
+  final GameController game;
+  final Widget Function(ValueChanged<int>) boardBuilder;
+  final Future<void> Function(int) onTap;
+  @override
+  State<_LargeBoard> createState() => _LargeBoardState();
+}
+
+class _LargeBoardState extends State<_LargeBoard> {
+  final horizontal = ScrollController(), vertical = ScrollController();
+  double zoom = 1;
+  @override
+  void dispose() {
+    horizontal.dispose();
+    vertical.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Dialog.fullscreen(
+    child: ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+      child: SafeArea(
+        child: ListenableBuilder(
+          listenable: widget.game,
+          builder: (context, _) => Column(
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('回到棋桌'),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton(
+                      onPressed: zoom > 1
+                          ? () => setState(() => zoom -= 0.25)
+                          : null,
+                      child: const Text('缩小'),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('${(zoom * 100).round()}%'),
+                    ),
+                    OutlinedButton(
+                      onPressed: zoom < 2
+                          ? () => setState(() => zoom += 0.25)
+                          : null,
+                      child: const Text('放大'),
+                    ),
+                    const SizedBox(width: 24),
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(widget.game.status),
+                    ),
+                  ],
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  '滚轮上下移动，拖动底部滚动条左右移动棋盘。',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 22),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    final width =
+                        math.max(540.0, math.min(720.0, box.maxWidth - 32)) *
+                        zoom;
+                    return Scrollbar(
+                      controller: horizontal,
+                      thumbVisibility: true,
+                      thickness: 14,
+                      scrollbarOrientation: ScrollbarOrientation.bottom,
+                      notificationPredicate: (n) =>
+                          n.metrics.axis == Axis.horizontal,
+                      child: Scrollbar(
+                        controller: vertical,
+                        thumbVisibility: true,
+                        thickness: 14,
+                        notificationPredicate: (n) =>
+                            n.metrics.axis == Axis.vertical,
+                        child: SingleChildScrollView(
+                          controller: horizontal,
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: math.max(width + 32, box.maxWidth),
+                            height: box.maxHeight,
+                            child: SingleChildScrollView(
+                              controller: vertical,
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                              child: Center(
+                                child: SizedBox(
+                                  width: width,
+                                  child: widget.boardBuilder((index) async {
+                                    await widget.onTap(index);
+                                    if (mounted) setState(() {});
+                                  }),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class ChessBoard extends StatelessWidget {
@@ -637,7 +938,9 @@ class ChessBoard extends StatelessWidget {
                       child: InkWell(
                         onTap: enabled ? () => onTap(i) : null,
                         child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 140),
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : const Duration(milliseconds: 140),
                           margin: EdgeInsets.all(cell * 0.035),
                           decoration: BoxDecoration(
                             border: selected == i

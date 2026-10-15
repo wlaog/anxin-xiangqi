@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:anxin_xiangqi/main.dart';
 import 'package:anxin_xiangqi/application/game_controller.dart';
+import 'package:anxin_xiangqi/application/user_preferences.dart';
 
 import '../test/controller_test.dart' show MemoryStore, ImmediateAi;
 
@@ -29,10 +30,19 @@ void main() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
-    for (final entry in {
-      'windows': const Size(1280, 800),
-      'android': const Size(412, 915),
-    }.entries) {
+    Future<void> capture(GlobalKey key, String name) async {
+      final boundary =
+          key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      await tester.runAsync(() async {
+        final image = await boundary.toImage();
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        File('${output.path}/$name.png')
+            .writeAsBytesSync(bytes!.buffer.asUint8List());
+        image.dispose();
+      });
+    }
+
+    for (final entry in {'windows': const Size(1280, 800)}.entries) {
       tester.view.physicalSize = entry.value;
       final game = GameController(store: MemoryStore(), engine: ImmediateAi());
       await game.initialize();
@@ -51,18 +61,38 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final boundary =
-          key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-      await tester.runAsync(() async {
-        final image = await boundary.toImage();
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('${output.path}/${entry.key}.png')
-            .writeAsBytesSync(bytes!.buffer.asUint8List());
-        image.dispose();
-      });
+      await capture(key, entry.key);
+      if (entry.key == 'windows') {
+        await tester.ensureVisible(find.text('使用设置'));
+        await tester.tap(find.text('使用设置'));
+        await tester.pumpAndSettle();
+        await capture(key, 'windows-settings');
+        await tester.tap(find.text('设置好了'));
+        await tester.pumpAndSettle();
+        await game.setPreferences(const UserPreferences(confirmMoves: true));
+        await tester.ensureVisible(find.byType(ChessBoard));
+        await tester.pumpAndSettle();
+        final board = tester.getRect(find.byType(ChessBoard));
+        final cell = board.width / 9;
+        await tester.tapAt(board.topLeft + Offset(cell * 0.5, cell * 6.5));
+        await tester.pump();
+        await tester.tapAt(board.topLeft + Offset(cell * 0.5, cell * 5.5));
+        await tester.pumpAndSettle();
+        await capture(key, 'windows-confirmation');
+        await tester.tap(find.text('再想想'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('放大棋盘'));
+        await tester.tap(find.text('放大棋盘'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('放大'));
+        await tester.pumpAndSettle();
+        await capture(key, 'windows-large-board');
+        await tester.tap(find.text('回到棋桌'));
+        await tester.pumpAndSettle();
+      }
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       game.dispose();
     }
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 }

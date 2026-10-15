@@ -1,7 +1,7 @@
 name: anxin_xiangqi
 description: 面向长辈的开源离线象棋，支持 Windows 和 Android。
 publish_to: none
-version: 0.2.0+2
+version: 0.3.0+3
 
 environment:
   sdk: ^3.13.5
