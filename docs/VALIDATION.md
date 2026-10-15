@@ -13,7 +13,8 @@
 - 新增界面检查覆盖真实棋桌入口、回看不改实盘、改名收藏、删除取消及确认、继续旧盘前保存当前盘；360×800、640×360 均以系统 200% 叠加应用 1.4 倍文字检查滚动、改名、删除确认和返回；120 份棋谱按可见范围构建，首屏 Card 少于 10 个；手动保存失败可重试。
 - `ANXIN_PREVIEW_FONT=C:/Windows/Fonts/msyh.ttc` 下实际运行 `flutter test tool/library_preview_test.dart --no-pub --reporter expanded`：1 项通过。目视核对 `windows-library.png`、`windows-library-narrow.png`、`windows-library-landscape.png`，统一放大新界面的删除和取消按钮。截图为 Flutter 测试渲染，不是 Windows 人工使用截图，字体不随包发行。
 - 最终 `flutter build windows --release --no-pub` 成功；构建 EXE 的 FileVersion 与 ProductVersion 均为 `0.5.0+5`。本轮没有启动最终 GUI 做人工完整对局，也未进行真实 Narrator、干净系统、长辈试用或 Android 验收。
-- `python -m py_compile scripts/package-windows.py`、`git diff --check` 通过。打包需在本地提交后进行，打包结果另行记录；此处不把尚未执行的打包写成通过。
+- `python -m py_compile scripts/package-windows.py`、`git diff --check` 通过。代码提交 `11f37fa69e8087ff4a85bec254c6c568638d3787` 后实际运行 `python scripts/package-windows.py`，生成本地 0.5.0 Windows 便携包与完整对应源码。两个 ZIP 的 CRC 检查通过；包内源码 ZIP 与单独源码 ZIP 字节一致；全部 `lib/` 源码与已提交工作区一致；EXE/DLL 与最终构建一致；两包 NNUE 哈希与固定清单一致；源码不含原 APK、私有研究目录或签名材料。
+- 便携包 `artifacts/anxin-xiangqi-windows-0.5.0.zip`，SHA-256：`8edca190555f87ea25fdcd33dd178243a514e4e976dfe32fe1c309fb9fe3e55f`。源码包 `artifacts/anxin-xiangqi-source-0.5.0.zip`，SHA-256：`f6f715b06e5f1f0395cfd5d8fe99e99b8100103dda8d0d8ab4fcebc1c84f0c43`。旁边各有校验文件；`library-package-verification.json` 为本地检查摘要。包内 `SOURCE-INFO.json` 指向上述代码提交，本节后续文档记录不改变已打包源码身份。
 
 ## APK 功能差距报告
 
