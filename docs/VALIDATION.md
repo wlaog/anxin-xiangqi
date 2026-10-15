@@ -4,7 +4,7 @@
 
 ## Windows 0.6.0 离线练习 Demo
 
-分支 `feat/offline-learning-demo`，版本 `0.6.0+6`。报告建议的八项功能各有可操作的演示流程，范围见 [演示说明](DEMO-0.6.md)；不是完整题库、完整棋谱格式兼容或整份报告的正式产品验收。只做本地提交、Windows 构建与打包，不推送或发布，Android 仍暂停。
+分支 `feat/offline-learning-demo`，版本 `0.6.0+6`。报告建议的八项功能各有可操作的演示流程，范围见 [演示说明](DEMO-0.6.md)；不是完整题库、完整棋谱格式兼容或整份报告的正式产品验收。本轮先做本地提交、Windows 构建与打包，Android 仍暂停；之后按用户追加授权推送 `main`、标签 `v0.6.0` 并发布 GitHub 预发布，见本节最后一条。
 
 - `flutter test --no-pub --reporter expanded`：完整 **101 项通过**，其中新增 16 项；最后完整测试日志为忽略的 `artifacts/study-all-tests.log`。包含全部原有真实 Pikafish / NNUE 回归，以及 13 道自有小题的真实原生合法着法、目标终局、局面与坐标导出导入、变着分支和自定义局面建议检查。两道镜像残局在说明中明示，未把题数当作独立战术类型数。
 - 领域与存储检查：非法将帅、仕相、兵卒、棋子数量、照面和计数拒绝；分支前缀复用、回退换路和完整研究往返；非法后续、重复节点、分支环、未知格式及过长文字拒绝；错题、练过状态串行更新；写失败不提交、重试恢复；坏档保留。练习笔记使用真实临时目录检查备份、重开、第二实例外部修改拒绝覆盖；与 0.5 共用同一文件存储实现。
@@ -16,6 +16,7 @@
 - `flutter build windows --release --no-pub` 成功，EXE 的 FileVersion / ProductVersion 为 `0.6.0+6`。`python -m py_compile scripts/package-windows.py`、`git diff --check` 通过。引擎源码、模型和原有陪练预算没有替换；新增研究建议请求使用已有第三档预算。
 - 在代码提交 `b5d7e3f5f637045687cc015c902dc40909d089a8` 的干净工作树上实际运行 `python scripts/package-windows.py`，生成 Windows 便携包及完整对应源码。独立核对两个 ZIP 的 CRC、包内源码 ZIP 与单独源码 ZIP 字节一致、38 个 `lib/` 和 Windows 宿主源码与工作区一致、EXE/DLL 与最终构建一致、两包 NNUE 与固定清单一致；确认源码不含原 APK、提取脚本、私有研究、个人产物或签名材料。摘要在忽略的 `artifacts/study-package-verification.json`，包内 `SOURCE-INFO.json` 记录上述代码提交。
 - `artifacts/anxin-xiangqi-windows-0.6.0.zip`：119705541 字节，SHA-256 `68d84dc9603c71f3451286087f127dcdb8c0ec33d9ca0580304915d484a8c795`。`artifacts/anxin-xiangqi-source-0.6.0.zip`：53759237 字节，SHA-256 `7dd6b2646f9039613baabcf567f15513f3f83b74e289200802a8016f08ba2874`。两包旁均有 `.zip.sha256`；后续本节文档提交不改变已打包代码身份。
+- 按用户追加授权发布 [v0.6.0 Demo 预发布](https://github.com/wlaog/anxin-xiangqi/releases/tag/v0.6.0)：Windows 便携 ZIP、完整对应源码 ZIP 与 `SHA256SUMS.txt`。上传前独立复核两个 ZIP 与 `SHA256SUMS.txt`、`.zip.sha256` 一致，源码包 274 项内含提交 `b5d7e3f` 的 `SOURCE-INFO.json`、包内对应源码与单独源码包字节一致，远端标签 `v0.6.0` 指回同一提交，发布说明与 `docs/releases/v0.6.0.md` 一致；上传后逐项核对 GitHub 返回的大小与 SHA-256。该版本按仓库已准备的参数标记为预发布，GitHub “Latest” 仍是 `v0.3.0`；既有标签没有改动。上传由忽略的 `artifacts/publish-v0.6.0.py` 完成，摘要写入忽略的 `artifacts/github-release-v0.6.0.json`。
 
 仍未完成：长辈实际试用、听感与音量验收、真实 Narrator / 全部 DPI / 干净系统验证、完整人工对弈、断电和进程强杀恢复、全部棋谱格式互通及 Android 真机验收。自由研究须手动保存，Demo 只有一个保存位置；多窗口保护拒绝覆盖，不合并。复盘没有引擎评分或失误诊断，13 题都是一步任务，没有多步课程或自动应手的完整残局闯关。原版 APK 本轮未重新运行或补做逆向。
 
